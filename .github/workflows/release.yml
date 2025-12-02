@@ -134,14 +134,14 @@ jobs:
             --input target \
             --main-jar protocaller-api-client-1.0.0-SNAPSHOT.jar \
             --main-class com.overzealouspelican.Main \
-            --name protocaller \
+            --name ProtoCaller \
             --type deb \
             --app-version 1.0 \
             --vendor "OverzealousPelican Development" \
             --description "Privacy-focused desktop API client" \
             --java-options '-Xmx512m' \
             --runtime-image custom-runtime \
-            --linux-package-name ProtoCaller \
+            --linux-package-name protocaller \
             --linux-app-category utils \
             --linux-shortcut
           
