@@ -10,6 +10,7 @@ A privacy-focused, desktop API client built with Java Swing. Test REST APIs, man
 - **🌍 Environment Management**: Easily switch between Dev, Staging, Production, etc.
 - **💾 Persistent Storage**: API calls and environments saved locally as JSON
 - **📦 HAR Import**: Import API calls directly from browser HAR files
+- **💻 cURL Import**: Paste cURL commands to create API calls quickly
 - **🎨 Customizable Themes**: Choose from multiple FlatLaf themes to personalize your workspace
 - **⚙️ Configurable Storage**: Set custom storage locations for your JSON files
 - **🔄 Variable Substitution**: Use environment variables in URLs, headers, and body
@@ -121,7 +122,20 @@ java -jar pcac-1.0-SNAPSHOT.jar
    - Choose which request to import
    - The call will be saved with the filename as its name
 
-5. **Organize with Groups**:
+5. **Import from cURL**:
+   - Click the "Import" button in the Saved Calls panel
+   - Paste your cURL command into the dialog
+   - Click "Import"
+   - The call will be saved with a generated name
+   
+   **Supported cURL features**:
+   - HTTP methods: `-X GET/POST/PUT/DELETE` or `--request`
+   - Headers: `-H "Header: Value"` or `--header`
+   - Body data: `-d`, `--data`, or `--data-raw` (supports JSON with nested quotes)
+   - URLs with or without quotes
+   - Automatic POST method detection when body data is present
+
+6. **Organize with Groups**:
    - **Create a group**: Drag one saved API call onto another
    - You'll be prompted to enter a group name
    - Both calls will be grouped together under a collapsible header
@@ -129,7 +143,7 @@ java -jar pcac-1.0-SNAPSHOT.jar
    - **Expand/collapse groups**: Click the group header to show or hide its members
    - **Remove from group**: Drag a call out of the group onto an ungrouped call
 
-6. **Customize Settings**:
+7. **Customize Settings**:
    - Click the "Settings" button in the top-right
    - Choose your preferred theme from the dropdown
    - Optionally set a custom storage location for your JSON files

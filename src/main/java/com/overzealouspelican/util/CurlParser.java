@@ -87,8 +87,8 @@ public class CurlParser {
             return method.toUpperCase();
         }
 
-        // Check for -d or --data (implies POST)
-        if (curl.contains("-d ") || curl.contains("--data")) {
+        // Check for -d, --data, or --data-raw (implies POST)
+        if (curl.contains("-d ") || curl.contains("--data") || curl.contains("--data-raw")) {
             return "POST";
         }
 
@@ -132,14 +132,17 @@ public class CurlParser {
     private static Map<String, String> extractBody(String curl) {
         Map<String, String> body = new HashMap<>();
 
-        // Match -d 'data' or --data 'data'
-        Pattern pattern = Pattern.compile("-d\\s+['\"]([^'\"]+)['\"]|--data\\s+['\"]([^'\"]+)['\"]");
+        // Match -d 'data', --data 'data', or --data-raw 'data'
+        Pattern pattern = Pattern.compile("(?:-d|--data|--data-raw)\\s+'([^']+)'|(?:-d|--data|--data-raw)\\s+\"([^\"]+)\"|(?:-d|--data|--data-raw)\\s+([^\\s-]+)");
         Matcher matcher = pattern.matcher(curl);
 
         if (matcher.find()) {
             String data = matcher.group(1);
             if (data == null) {
                 data = matcher.group(2);
+            }
+            if (data == null) {
+                data = matcher.group(3);
             }
 
             if (data != null) {
@@ -164,21 +167,29 @@ public class CurlParser {
         // Remove outer braces
         json = json.substring(1, json.length() - 1).trim();
 
-        // Simple key-value extraction (not a full JSON parser)
-        Pattern pattern = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\"([^\"]+)\"|\"([^\"]+)\"\\s*:\\s*([^,}]+)");
+        // Enhanced pattern to handle:
+        // 1. "key": "value"
+        // 2. "key": null
+        // 3. "key": 123 (numbers)
+        // 4. "key": true/false (booleans)
+        Pattern pattern = Pattern.compile("\"([^\"]+)\"\\s*:\\s*(\"([^\"]*)\"|null|true|false|[0-9]+(?:\\.[0-9]+)?)");
         Matcher matcher = pattern.matcher(json);
 
         while (matcher.find()) {
             String key = matcher.group(1);
-            String value = matcher.group(2);
+            String fullValue = matcher.group(2);
+            String quotedValue = matcher.group(3);
 
-            if (key == null) {
-                key = matcher.group(3);
-                value = matcher.group(4);
-            }
-
-            if (key != null && value != null) {
-                map.put(key.trim(), value.trim());
+            if (key != null && fullValue != null) {
+                String value;
+                if (quotedValue != null) {
+                    // It's a quoted string value
+                    value = quotedValue;
+                } else {
+                    // It's null, boolean, or numeric - use the full value
+                    value = fullValue;
+                }
+                map.put(key.trim(), value);
             }
         }
     }

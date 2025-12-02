@@ -24,7 +24,7 @@ jobs:
         run: |
           jpackage `
             --input target `
-            --main-jar pcac-1.0-SNAPSHOT.jar `
+            --main-jar protocaller-api-client-1.0.0-SNAPSHOT.jar`
             --main-class com.overzealouspelican.Main `
             --name ProtoCaller `
             --type exe `
@@ -70,7 +70,7 @@ jobs:
         run: |
           jpackage \
             --input target \
-            --main-jar pcac-1.0-SNAPSHOT.jar \
+            --main-jar protocaller-api-client-1.0.0-SNAPSHOT.jar \
             --main-class com.overzealouspelican.Main \
             --name ProtoCaller \
             --type app-image \
@@ -132,7 +132,7 @@ jobs:
           # Use jpackage with the custom runtime to bypass jlink
           jpackage \
             --input target \
-            --main-jar pcac-1.0-SNAPSHOT.jar \
+            --main-jar protocaller-api-client-1.0.0-SNAPSHOT.jar \
             --main-class com.overzealouspelican.Main \
             --name ProtoCaller \
             --type deb \
