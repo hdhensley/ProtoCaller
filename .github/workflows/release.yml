@@ -24,7 +24,7 @@ jobs:
         run: |
           jpackage `
             --input target `
-            --main-jar protocaller-api-client-1.0.0-SNAPSHOT.jar`
+            --main-jar protocaller-api-client-1.0.0-SNAPSHOT.jar `
             --main-class com.overzealouspelican.Main `
             --name ProtoCaller `
             --type exe `
@@ -134,7 +134,7 @@ jobs:
             --input target \
             --main-jar protocaller-api-client-1.0.0-SNAPSHOT.jar \
             --main-class com.overzealouspelican.Main \
-            --name ProtoCaller \
+            --name protocaller \
             --type deb \
             --app-version 1.0 \
             --vendor "OverzealousPelican Development" \
