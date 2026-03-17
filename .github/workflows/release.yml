@@ -11,6 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
       - name: Set up JDK 25
         uses: actions/setup-java@v4
         with:
@@ -28,7 +33,7 @@ jobs:
             --main-class com.overzealouspelican.Main `
             --name ProtoCaller `
             --type exe `
-            --app-version 1.0.0 `
+            --app-version ${{ steps.version.outputs.VERSION }} `
             --vendor "OverzealousPelican Development" `
             --description "Privacy-focused desktop API client" `
             --java-options '-Xmx512m' `
@@ -57,6 +62,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
       - name: Set up JDK 25
         uses: actions/setup-java@v4
         with:
@@ -72,22 +81,15 @@ jobs:
           MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          # Decode the certificate from base64
           echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
 
-          # Create a temporary keychain
           security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-
-          # Import the certificate
           security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
 
-          # Verify the identity is available
           security find-identity -v -p codesigning build.keychain
-
-          # Clean up the certificate file
           rm certificate.p12
 
       - name: Create entitlements file
@@ -115,40 +117,59 @@ jobs:
             --main-class com.overzealouspelican.Main \
             --name ProtoCaller \
             --type app-image \
-            --app-version 1.0.0 \
+            --app-version ${{ steps.version.outputs.VERSION }} \
             --vendor "OverzealousPelican Development" \
             --description "Privacy-focused desktop API client" \
             --java-options '-Xmx512m' \
             --mac-package-name ProtoCaller
 
-      - name: Sign the app bundle
+      - name: Sign the app bundle (inside-out)
         env:
           DEVELOPER_ID: ${{ secrets.MACOS_DEVELOPER_ID }}
         run: |
-          # Sign all nested binaries and dylibs first, then the app bundle
-          find ProtoCaller.app -type f \( -name "*.dylib" -o -name "*.jnilib" \) -exec \
+          APP="ProtoCaller.app"
+
+          echo "=== Signing all .dylib files ==="
+          find "$APP" -name "*.dylib" -exec \
             codesign --force --sign "$DEVELOPER_ID" --options runtime \
             --entitlements entitlements.plist --timestamp {} \;
 
-          # Sign all executables inside the runtime
-          find ProtoCaller.app/Contents/runtime -type f -perm +111 -exec \
+          echo "=== Signing all .jnilib files ==="
+          find "$APP" -name "*.jnilib" -exec \
             codesign --force --sign "$DEVELOPER_ID" --options runtime \
             --entitlements entitlements.plist --timestamp {} \;
 
-          # Sign the main app bundle
-          codesign --force --deep --sign "$DEVELOPER_ID" --options runtime \
-            --entitlements entitlements.plist --timestamp ProtoCaller.app
+          echo "=== Signing all executable binaries in runtime ==="
+          find "$APP/Contents/runtime" -type f -perm +111 ! -name "*.dylib" ! -name "*.jnilib" -exec \
+            codesign --force --sign "$DEVELOPER_ID" --options runtime \
+            --entitlements entitlements.plist --timestamp {} \;
 
-          # Verify
-          codesign --verify --verbose=2 ProtoCaller.app
-          spctl --assess --type execute --verbose=2 ProtoCaller.app || true
+          echo "=== Signing all .jar files ==="
+          find "$APP" -name "*.jar" -exec \
+            codesign --force --sign "$DEVELOPER_ID" --timestamp {} \;
+
+          echo "=== Signing the main executable ==="
+          codesign --force --sign "$DEVELOPER_ID" --options runtime \
+            --entitlements entitlements.plist --timestamp \
+            "$APP/Contents/MacOS/ProtoCaller"
+
+          echo "=== Signing the top-level app bundle ==="
+          codesign --force --sign "$DEVELOPER_ID" --options runtime \
+            --entitlements entitlements.plist --timestamp "$APP"
+
+          echo "=== Verifying signature ==="
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          echo "=== Checking Gatekeeper assessment ==="
+          spctl --assess --type execute --verbose=2 "$APP" || true
 
       - name: Create DMG
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           jpackage \
             --app-image ProtoCaller.app \
             --type dmg \
-            --app-version 1.0.0 \
+            --app-version "$VERSION" \
             --name ProtoCaller \
             --vendor "OverzealousPelican Development" \
             --description "Privacy-focused desktop API client" \
@@ -160,24 +181,52 @@ jobs:
       - name: Sign the DMG
         env:
           DEVELOPER_ID: ${{ secrets.MACOS_DEVELOPER_ID }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          codesign --force --sign "$DEVELOPER_ID" --timestamp ProtoCaller-1.0.0.dmg
-          codesign --verify --verbose=2 ProtoCaller-1.0.0.dmg
+          DMG_FILE="ProtoCaller-${VERSION}.dmg"
+          codesign --force --sign "$DEVELOPER_ID" --timestamp "$DMG_FILE"
+          codesign --verify --verbose=2 "$DMG_FILE"
 
       - name: Notarize the DMG
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          xcrun notarytool submit ProtoCaller-1.0.0.dmg \
+          DMG_FILE="ProtoCaller-${VERSION}.dmg"
+
+          # Submit and capture the output to get the submission ID
+          SUBMIT_OUTPUT=$(xcrun notarytool submit "$DMG_FILE" \
             --apple-id "$APPLE_ID" \
             --team-id "$APPLE_TEAM_ID" \
             --password "$APPLE_APP_PASSWORD" \
-            --wait
+            --wait 2>&1) || true
 
-          # Staple the notarization ticket to the DMG
-          xcrun stapler staple ProtoCaller-1.0.0.dmg
+          echo "$SUBMIT_OUTPUT"
+
+          # Extract submission ID
+          SUBMISSION_ID=$(echo "$SUBMIT_OUTPUT" | grep -m1 "id:" | awk '{print $2}')
+
+          # Check if notarization succeeded
+          if echo "$SUBMIT_OUTPUT" | grep -q "status: Accepted"; then
+            echo "Notarization succeeded!"
+          else
+            echo "Notarization failed. Fetching detailed log..."
+            if [ -n "$SUBMISSION_ID" ]; then
+              xcrun notarytool log "$SUBMISSION_ID" \
+                --apple-id "$APPLE_ID" \
+                --team-id "$APPLE_TEAM_ID" \
+                --password "$APPLE_APP_PASSWORD" \
+                notarization-log.json
+              echo "=== Notarization Log ==="
+              cat notarization-log.json
+            fi
+            exit 1
+          fi
+
+          # Staple the notarization ticket
+          xcrun stapler staple "$DMG_FILE"
 
       - name: Upload macOS Installer
         uses: actions/upload-artifact@v4
@@ -191,6 +240,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
       - name: Set up JDK 25
         uses: actions/setup-java@v4
         with:
@@ -202,17 +255,15 @@ jobs:
 
       - name: Create Linux DEB Installer (with jlink workaround)
         run: |
-          # Create a custom runtime by copying the full JDK to avoid ct.sym jlink bug in JDK 25
           cp -r $JAVA_HOME custom-runtime
 
-          # Use jpackage with the custom runtime to bypass jlink
           jpackage \
             --input target \
             --main-jar protocaller-api-client-1.0.0-SNAPSHOT.jar \
             --main-class com.overzealouspelican.Main \
             --name ProtoCaller \
             --type deb \
-            --app-version 1.0 \
+            --app-version ${{ steps.version.outputs.VERSION }} \
             --vendor "OverzealousPelican Development" \
             --description "Privacy-focused desktop API client" \
             --java-options '-Xmx512m' \
@@ -221,11 +272,8 @@ jobs:
             --linux-app-category utils \
             --linux-shortcut
 
-          # List all files to see what was created
-          echo "=== Files in current directory after jpackage ==="
-          ls -la
           echo "=== Looking for DEB files ==="
-          ls -la *.deb 2>/dev/null || echo "No .deb files found with ls *.deb"
+          ls -la *.deb 2>/dev/null || echo "No .deb files found"
           find . -name "*.deb" -type f || echo "No .deb files found with find"
 
       - name: Upload Linux Installer
