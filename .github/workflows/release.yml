@@ -143,25 +143,27 @@ jobs:
           # FlatLaf bundles native .dylib files inside its .jar
           # Apple requires these to be signed too, so we extract, sign, and repack
           echo "=== Handling native dylibs inside JARs ==="
+          WORK_DIR="$(pwd)"
           find "$APP" -name "*.jar" | while read -r jar; do
+            JAR_ABS="$(cd "$(dirname "$jar")" && pwd)/$(basename "$jar")"
             # Check if this jar contains any .dylib files
-            if jar tf "$jar" | grep -q "\.dylib$"; then
+            if jar tf "$JAR_ABS" | grep -q "\.dylib$"; then
               echo "Found native dylibs in: $jar"
-              TMPDIR=$(mktemp -d)
-              pushd "$TMPDIR" > /dev/null
-              jar xf "$jar"
+              EXTRACT_DIR=$(mktemp -d)
+              pushd "$EXTRACT_DIR" > /dev/null
+              jar xf "$JAR_ABS"
 
               # Sign each dylib inside the jar
               find . -name "*.dylib" | while read -r dylib; do
                 echo "  Signing embedded: $dylib"
                 codesign --force --sign "$DEVELOPER_ID" --options runtime \
-                  --entitlements "$OLDPWD/entitlements.plist" --timestamp "$dylib"
+                  --entitlements "$WORK_DIR/entitlements.plist" --timestamp "$dylib"
               done
 
               # Repack the jar
-              jar cf "$jar" .
+              jar cf "$JAR_ABS" .
               popd > /dev/null
-              rm -rf "$TMPDIR"
+              rm -rf "$EXTRACT_DIR"
             fi
           done
 
