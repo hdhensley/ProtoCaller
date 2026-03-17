@@ -3,7 +3,7 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   build-windows:
@@ -14,8 +14,8 @@ jobs:
       - name: Set up JDK 25
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '25'
+          distribution: "temurin"
+          java-version: "25"
 
       - name: Build with Maven
         run: mvn clean package
@@ -35,7 +35,7 @@ jobs:
             --win-dir-chooser `
             --win-menu `
             --win-shortcut
-          
+
           Write-Host "=== Files in current directory after jpackage ==="
           Get-ChildItem
           Write-Host "=== Looking for EXE files ==="
@@ -60,13 +60,54 @@ jobs:
       - name: Set up JDK 25
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '25'
+          distribution: "temurin"
+          java-version: "25"
 
       - name: Build with Maven
         run: mvn clean package
 
-      - name: Create macOS Installer
+      - name: Import signing certificate
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # Decode the certificate from base64
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+
+          # Create a temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+
+          # Import the certificate
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+
+          # Verify the identity is available
+          security find-identity -v -p codesigning build.keychain
+
+          # Clean up the certificate file
+          rm certificate.p12
+
+      - name: Create entitlements file
+        run: |
+          cat > entitlements.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>com.apple.security.cs.allow-jit</key>
+              <true/>
+              <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+              <true/>
+              <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+              <true/>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Create macOS app bundle
         run: |
           jpackage \
             --input target \
@@ -79,14 +120,31 @@ jobs:
             --description "Privacy-focused desktop API client" \
             --java-options '-Xmx512m' \
             --mac-package-name ProtoCaller
-          
-          # Ad-hoc sign the app bundle
-          echo "=== Signing the app bundle ==="
-          codesign --force --deep --sign - ProtoCaller.app
-          codesign --verify --verbose ProtoCaller.app
-          
-          # Now create the DMG with the signed app
-          echo "=== Creating DMG with signed app ==="
+
+      - name: Sign the app bundle
+        env:
+          DEVELOPER_ID: ${{ secrets.MACOS_DEVELOPER_ID }}
+        run: |
+          # Sign all nested binaries and dylibs first, then the app bundle
+          find ProtoCaller.app -type f \( -name "*.dylib" -o -name "*.jnilib" \) -exec \
+            codesign --force --sign "$DEVELOPER_ID" --options runtime \
+            --entitlements entitlements.plist --timestamp {} \;
+
+          # Sign all executables inside the runtime
+          find ProtoCaller.app/Contents/runtime -type f -perm +111 -exec \
+            codesign --force --sign "$DEVELOPER_ID" --options runtime \
+            --entitlements entitlements.plist --timestamp {} \;
+
+          # Sign the main app bundle
+          codesign --force --deep --sign "$DEVELOPER_ID" --options runtime \
+            --entitlements entitlements.plist --timestamp ProtoCaller.app
+
+          # Verify
+          codesign --verify --verbose=2 ProtoCaller.app
+          spctl --assess --type execute --verbose=2 ProtoCaller.app || true
+
+      - name: Create DMG
+        run: |
           jpackage \
             --app-image ProtoCaller.app \
             --type dmg \
@@ -95,13 +153,31 @@ jobs:
             --vendor "OverzealousPelican Development" \
             --description "Privacy-focused desktop API client" \
             --mac-package-name ProtoCaller
-          
-          # List all files to see what was created
-          echo "=== Files in current directory after jpackage ==="
-          ls -la
+
           echo "=== Looking for DMG files ==="
-          ls -la *.dmg 2>/dev/null || echo "No .dmg files found with ls *.dmg"
-          find . -name "*.dmg" -type f || echo "No .dmg files found with find"
+          ls -la *.dmg
+
+      - name: Sign the DMG
+        env:
+          DEVELOPER_ID: ${{ secrets.MACOS_DEVELOPER_ID }}
+        run: |
+          codesign --force --sign "$DEVELOPER_ID" --timestamp ProtoCaller-1.0.0.dmg
+          codesign --verify --verbose=2 ProtoCaller-1.0.0.dmg
+
+      - name: Notarize the DMG
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          xcrun notarytool submit ProtoCaller-1.0.0.dmg \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --wait
+
+          # Staple the notarization ticket to the DMG
+          xcrun stapler staple ProtoCaller-1.0.0.dmg
 
       - name: Upload macOS Installer
         uses: actions/upload-artifact@v4
@@ -118,8 +194,8 @@ jobs:
       - name: Set up JDK 25
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '25'
+          distribution: "temurin"
+          java-version: "25"
 
       - name: Build with Maven
         run: mvn clean package
@@ -128,7 +204,7 @@ jobs:
         run: |
           # Create a custom runtime by copying the full JDK to avoid ct.sym jlink bug in JDK 25
           cp -r $JAVA_HOME custom-runtime
-          
+
           # Use jpackage with the custom runtime to bypass jlink
           jpackage \
             --input target \
@@ -144,7 +220,7 @@ jobs:
             --linux-package-name protocaller \
             --linux-app-category utils \
             --linux-shortcut
-          
+
           # List all files to see what was created
           echo "=== Files in current directory after jpackage ==="
           ls -la
