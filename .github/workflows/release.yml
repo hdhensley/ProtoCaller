@@ -138,71 +138,74 @@ jobs:
         env:
           DEVELOPER_ID: ${{ secrets.MACOS_DEVELOPER_ID }}
         run: |
+          set -euo pipefail
           APP="ProtoCaller.app"
+          WORK_DIR="$(pwd)"
+
+          # Verify the signing identity is actually usable
+          echo "=== Verifying signing identity ==="
+          echo "DEVELOPER_ID value: '$DEVELOPER_ID'"
+          security find-identity -v -p codesigning
+          echo "=== Testing codesign with a dummy file ==="
+          echo "test" > /tmp/codesign_test
+          codesign --force --sign "$DEVELOPER_ID" --timestamp /tmp/codesign_test && echo "Test sign SUCCEEDED" || {
+            echo "ERROR: Cannot sign with identity '$DEVELOPER_ID'"
+            echo "Available identities:"
+            security find-identity -v -p codesigning
+            exit 1
+          }
+          rm /tmp/codesign_test
 
           # FlatLaf bundles native .dylib files inside its .jar
           # Apple requires these to be signed too, so we extract, sign, and repack
           echo "=== Handling native dylibs inside JARs ==="
-          WORK_DIR="$(pwd)"
-          find "$APP" -name "*.jar" | while read -r jar; do
+          for jar in $(find "$APP" -name "*.jar"); do
             JAR_ABS="$(cd "$(dirname "$jar")" && pwd)/$(basename "$jar")"
-            # Check if this jar contains any .dylib files
             if jar tf "$JAR_ABS" | grep -q "\.dylib$"; then
               echo "Found native dylibs in: $jar"
               EXTRACT_DIR=$(mktemp -d)
               pushd "$EXTRACT_DIR" > /dev/null
               jar xf "$JAR_ABS"
 
-              # Sign each dylib inside the jar
-              find . -name "*.dylib" | while read -r dylib; do
+              for dylib in $(find . -name "*.dylib"); do
                 echo "  Signing embedded: $dylib"
                 codesign --force --sign "$DEVELOPER_ID" --options runtime \
                   --entitlements "$WORK_DIR/entitlements.plist" --timestamp "$dylib"
               done
 
-              # Repack the jar
               jar cf "$JAR_ABS" .
               popd > /dev/null
               rm -rf "$EXTRACT_DIR"
             fi
           done
 
-          # Sign every Mach-O binary in the bundle
+          # Build a list of all Mach-O binaries and sign them
           echo "=== Signing all Mach-O binaries ==="
-          find "$APP" -type f | while read -r file; do
-            if file "$file" | grep -q "Mach-O"; then
-              echo "Signing: $file"
-              codesign --force --sign "$DEVELOPER_ID" --options runtime \
-                --entitlements entitlements.plist --timestamp "$file"
-            fi
+          MACHO_FILES=$(find "$APP" -type f -exec sh -c 'file "$1" | grep -q "Mach-O"' _ {} \; -print)
+          for file in $MACHO_FILES; do
+            echo "Signing: $file"
+            codesign --force --sign "$DEVELOPER_ID" --options runtime \
+              --entitlements entitlements.plist --timestamp "$file"
+            # Verify immediately
+            codesign --verify --verbose=0 "$file" || {
+              echo "ERROR: Failed to verify signature on $file"
+              codesign -dvv "$file"
+              exit 1
+            }
           done
 
           echo "=== Signing all .jar files ==="
           find "$APP" -name "*.jar" -exec \
             codesign --force --sign "$DEVELOPER_ID" --timestamp {} \;
 
-          echo "=== Signing the main executable ==="
-          codesign --force --sign "$DEVELOPER_ID" --options runtime \
-            --entitlements entitlements.plist --timestamp \
-            "$APP/Contents/MacOS/ProtoCaller"
-
           echo "=== Signing the top-level app bundle ==="
           codesign --force --sign "$DEVELOPER_ID" --options runtime \
             --entitlements entitlements.plist --timestamp "$APP"
 
-          echo "=== Verifying signature ==="
+          echo "=== Verifying final signature ==="
           codesign --verify --deep --strict --verbose=2 "$APP"
-
-          echo "=== Verifying no unsigned binaries remain ==="
-          find "$APP" -type f | while read -r file; do
-            if file "$file" | grep -q "Mach-O"; then
-              if ! codesign --verify --verbose=0 "$file" 2>/dev/null; then
-                echo "WARNING: Unsigned binary found: $file"
-                exit 1
-              fi
-            fi
-          done
-          echo "All binaries verified."
+          echo "=== Checking signing authority ==="
+          codesign -dvv "$APP/Contents/MacOS/ProtoCaller" 2>&1 | grep "Authority"
 
       - name: Create DMG
         env:
