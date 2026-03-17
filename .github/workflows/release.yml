@@ -83,13 +83,24 @@ jobs:
         run: |
           echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
 
-          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          # Create and configure the keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain-db
+          security set-keychain-settings -lut 21600 build.keychain-db
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain-db
 
-          security find-identity -v -p codesigning build.keychain
+          # Import the certificate
+          security import certificate.p12 -k build.keychain-db -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain-db
+
+          # Add to search list so codesign can find it
+          security list-keychains -d user -s build.keychain-db $(security list-keychains -d user | tr -d '"')
+
+          # Verify
+          echo "=== Keychain search list ==="
+          security list-keychains -d user
+          echo "=== Signing identities ==="
+          security find-identity -v -p codesigning
+
           rm certificate.p12
 
       - name: Create entitlements file
@@ -129,9 +140,33 @@ jobs:
         run: |
           APP="ProtoCaller.app"
 
-          # Find and re-sign every Mach-O binary in the bundle (dylibs, executables, etc.)
-          # This catches everything including JDK runtime binaries that ship without timestamps
-          echo "=== Finding all Mach-O binaries ==="
+          # FlatLaf bundles native .dylib files inside its .jar
+          # Apple requires these to be signed too, so we extract, sign, and repack
+          echo "=== Handling native dylibs inside JARs ==="
+          find "$APP" -name "*.jar" | while read -r jar; do
+            # Check if this jar contains any .dylib files
+            if jar tf "$jar" | grep -q "\.dylib$"; then
+              echo "Found native dylibs in: $jar"
+              TMPDIR=$(mktemp -d)
+              pushd "$TMPDIR" > /dev/null
+              jar xf "$jar"
+
+              # Sign each dylib inside the jar
+              find . -name "*.dylib" | while read -r dylib; do
+                echo "  Signing embedded: $dylib"
+                codesign --force --sign "$DEVELOPER_ID" --options runtime \
+                  --entitlements "$OLDPWD/entitlements.plist" --timestamp "$dylib"
+              done
+
+              # Repack the jar
+              jar cf "$jar" .
+              popd > /dev/null
+              rm -rf "$TMPDIR"
+            fi
+          done
+
+          # Sign every Mach-O binary in the bundle
+          echo "=== Signing all Mach-O binaries ==="
           find "$APP" -type f | while read -r file; do
             if file "$file" | grep -q "Mach-O"; then
               echo "Signing: $file"
@@ -155,8 +190,17 @@ jobs:
 
           echo "=== Verifying signature ==="
           codesign --verify --deep --strict --verbose=2 "$APP"
-          echo "=== Checking Gatekeeper assessment ==="
-          spctl --assess --type execute --verbose=2 "$APP" || true
+
+          echo "=== Verifying no unsigned binaries remain ==="
+          find "$APP" -type f | while read -r file; do
+            if file "$file" | grep -q "Mach-O"; then
+              if ! codesign --verify --verbose=0 "$file" 2>/dev/null; then
+                echo "WARNING: Unsigned binary found: $file"
+                exit 1
+              fi
+            fi
+          done
+          echo "All binaries verified."
 
       - name: Create DMG
         env:
