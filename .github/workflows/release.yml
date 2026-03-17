@@ -210,27 +210,39 @@ jobs:
       - name: Create DMG
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
-        run: |
-          jpackage \
-            --app-image ProtoCaller.app \
-            --type dmg \
-            --app-version "$VERSION" \
-            --name ProtoCaller \
-            --vendor "OverzealousPelican Development" \
-            --description "Privacy-focused desktop API client" \
-            --mac-package-name ProtoCaller
-
-          echo "=== Looking for DMG files ==="
-          ls -la *.dmg
-
-      - name: Sign the DMG
-        env:
           DEVELOPER_ID: ${{ secrets.MACOS_DEVELOPER_ID }}
-          VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
+          # Create DMG manually with hdiutil instead of jpackage
+          # jpackage --type dmg re-signs the app bundle with ad-hoc signatures,
+          # which destroys our Developer ID signatures
           DMG_FILE="ProtoCaller-${VERSION}.dmg"
+
+          # Create a temporary directory for the DMG contents
+          mkdir -p dmg-staging
+          cp -R ProtoCaller.app dmg-staging/
+
+          # Optionally add a symlink to /Applications for drag-and-drop install
+          ln -s /Applications dmg-staging/Applications
+
+          # Verify the app inside staging still has our signature
+          echo "=== Verifying app signature before DMG creation ==="
+          codesign -dvv "dmg-staging/ProtoCaller.app/Contents/MacOS/ProtoCaller" 2>&1 | grep "Authority"
+
+          # Create the DMG
+          hdiutil create -volname "ProtoCaller" \
+            -srcfolder dmg-staging \
+            -ov -format UDZO \
+            "$DMG_FILE"
+
+          # Sign the DMG itself
           codesign --force --sign "$DEVELOPER_ID" --timestamp "$DMG_FILE"
           codesign --verify --verbose=2 "$DMG_FILE"
+
+          echo "=== DMG created ==="
+          ls -la "$DMG_FILE"
+
+          # Clean up
+          rm -rf dmg-staging
 
       - name: Notarize the DMG
         env:
