@@ -129,20 +129,16 @@ jobs:
         run: |
           APP="ProtoCaller.app"
 
-          echo "=== Signing all .dylib files ==="
-          find "$APP" -name "*.dylib" -exec \
-            codesign --force --sign "$DEVELOPER_ID" --options runtime \
-            --entitlements entitlements.plist --timestamp {} \;
-
-          echo "=== Signing all .jnilib files ==="
-          find "$APP" -name "*.jnilib" -exec \
-            codesign --force --sign "$DEVELOPER_ID" --options runtime \
-            --entitlements entitlements.plist --timestamp {} \;
-
-          echo "=== Signing all executable binaries in runtime ==="
-          find "$APP/Contents/runtime" -type f -perm +111 ! -name "*.dylib" ! -name "*.jnilib" -exec \
-            codesign --force --sign "$DEVELOPER_ID" --options runtime \
-            --entitlements entitlements.plist --timestamp {} \;
+          # Find and re-sign every Mach-O binary in the bundle (dylibs, executables, etc.)
+          # This catches everything including JDK runtime binaries that ship without timestamps
+          echo "=== Finding all Mach-O binaries ==="
+          find "$APP" -type f | while read -r file; do
+            if file "$file" | grep -q "Mach-O"; then
+              echo "Signing: $file"
+              codesign --force --sign "$DEVELOPER_ID" --options runtime \
+                --entitlements entitlements.plist --timestamp "$file"
+            fi
+          done
 
           echo "=== Signing all .jar files ==="
           find "$APP" -name "*.jar" -exec \
