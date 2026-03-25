@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.overzealouspelican.util.UITheme;
 
 /**
  * Reusable component for key-value input pairs with IntelliJ-style appearance.
@@ -41,9 +42,9 @@ public class KeyValueInputGroup extends JPanel {
         // Group label
         JLabel label = new JLabel(groupLabel);
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
-        label.setFont(label.getFont().deriveFont(Font.BOLD, 12f));
+        label.setFont(label.getFont().deriveFont(Font.BOLD, UITheme.FONT_SIZE_MD));
         add(label);
-        add(Box.createVerticalStrut(8));
+        add(Box.createVerticalStrut(UITheme.SPACING_SM));
 
         // Column labels
         JPanel columnLabelsPanel = new JPanel(new BorderLayout(8, 0));
@@ -52,13 +53,13 @@ public class KeyValueInputGroup extends JPanel {
         columnLabelsPanel.setBackground(UIManager.getColor("Panel.background"));
 
         JLabel keyLabel = new JLabel("Key");
-        keyLabel.setFont(keyLabel.getFont().deriveFont(Font.PLAIN, 11f));
-        keyLabel.setForeground(UIManager.getColor("Label.foreground"));
+        keyLabel.setFont(keyLabel.getFont().deriveFont(Font.PLAIN, UITheme.FONT_SIZE_SM));
+        keyLabel.setForeground(UIManager.getColor("Label.disabledForeground"));
         keyLabel.setPreferredSize(new Dimension(180, 20));
 
         JLabel valueLabel = new JLabel("Value");
-        valueLabel.setFont(valueLabel.getFont().deriveFont(Font.PLAIN, 11f));
-        valueLabel.setForeground(UIManager.getColor("Label.foreground"));
+        valueLabel.setFont(valueLabel.getFont().deriveFont(Font.PLAIN, UITheme.FONT_SIZE_SM));
+        valueLabel.setForeground(UIManager.getColor("Label.disabledForeground"));
 
         JLabel spacer = new JLabel("");
         spacer.setPreferredSize(new Dimension(36, 20));
@@ -68,7 +69,7 @@ public class KeyValueInputGroup extends JPanel {
         columnLabelsPanel.add(spacer, BorderLayout.EAST);
 
         add(columnLabelsPanel);
-        add(Box.createVerticalStrut(4));
+        add(Box.createVerticalStrut(UITheme.SPACING_XS));
 
         // Rows container with scroll
         rowsContainer.setLayout(new BoxLayout(rowsContainer, BoxLayout.Y_AXIS));
@@ -86,7 +87,7 @@ public class KeyValueInputGroup extends JPanel {
         scrollPane.getHorizontalScrollBar().setUnitIncrement(16);
 
         add(scrollPane);
-        add(Box.createVerticalStrut(8));
+        add(Box.createVerticalStrut(UITheme.SPACING_SM));
 
         // Add Row button
         JButton addRowButton = new JButton(addButtonText);
@@ -103,27 +104,27 @@ public class KeyValueInputGroup extends JPanel {
     private void addRow() {
         JPanel rowPanel = new JPanel();
         rowPanel.setLayout(new BoxLayout(rowPanel, BoxLayout.X_AXIS));
-        rowPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
-        rowPanel.setMinimumSize(new Dimension(620, 28)); // key(180) + value(400) + button(36) + gaps(4)
-        rowPanel.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
+        rowPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, UITheme.INPUT_HEIGHT));
+        rowPanel.setMinimumSize(new Dimension(620, UITheme.INPUT_HEIGHT));
+        rowPanel.setBorder(BorderFactory.createEmptyBorder(2, UITheme.SPACING_XS, 2, UITheme.SPACING_XS));
         rowPanel.setBackground(UIManager.getColor("Panel.background"));
 
         JTextField keyField = new JTextField();
-        keyField.setPreferredSize(new Dimension(180, 24));
-        keyField.setMinimumSize(new Dimension(180, 24));
-        keyField.setMaximumSize(new Dimension(180, 24));
+        keyField.setPreferredSize(new Dimension(180, 26));
+        keyField.setMinimumSize(new Dimension(180, 26));
+        keyField.setMaximumSize(new Dimension(180, 26));
 
         JTextField valueField = new JTextField();
-        valueField.setPreferredSize(new Dimension(400, 24));
-        valueField.setMinimumSize(new Dimension(400, 24));
-        valueField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
+        valueField.setPreferredSize(new Dimension(400, 26));
+        valueField.setMinimumSize(new Dimension(400, 26));
+        valueField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 26));
 
         JButton removeButton = new JButton("×");
-        removeButton.setPreferredSize(new Dimension(36, 24));
-        removeButton.setMinimumSize(new Dimension(36, 24));
-        removeButton.setMaximumSize(new Dimension(36, 24));
+        removeButton.setPreferredSize(new Dimension(36, 26));
+        removeButton.setMinimumSize(new Dimension(36, 26));
+        removeButton.setMaximumSize(new Dimension(36, 26));
         removeButton.setToolTipText(removeTooltip);
-        removeButton.setFont(removeButton.getFont().deriveFont(16f));
+        removeButton.setFont(removeButton.getFont().deriveFont(UITheme.FONT_SIZE_TITLE));
         removeButton.setMargin(new Insets(0, 0, 0, 0));
 
         keyFields.add(keyField);

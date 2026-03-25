@@ -2,6 +2,7 @@ package com.overzealouspelican.component;
 
 import javax.swing.*;
 import java.awt.*;
+import com.overzealouspelican.util.UITheme;
 
 /**
  * Reusable component for a labeled text input field with IntelliJ-style appearance.
@@ -20,21 +21,21 @@ public class LabeledTextField extends JPanel {
 
     private void initializePanel(String tooltipText) {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        setMaximumSize(new Dimension(Integer.MAX_VALUE, 55));
+        setMaximumSize(new Dimension(Integer.MAX_VALUE, 58));
         setAlignmentX(Component.LEFT_ALIGNMENT);
         setBackground(UIManager.getColor("Panel.background"));
 
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
-        label.setFont(label.getFont().deriveFont(Font.PLAIN, 11f));
+        label.setFont(label.getFont().deriveFont(Font.PLAIN, UITheme.FONT_SIZE_SM));
         label.setForeground(UIManager.getColor("Label.foreground"));
 
         textField.setToolTipText(tooltipText);
-        textField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
-        textField.setPreferredSize(new Dimension(0, 28));
+        textField.setMaximumSize(new Dimension(Integer.MAX_VALUE, UITheme.INPUT_HEIGHT));
+        textField.setPreferredSize(new Dimension(0, UITheme.INPUT_HEIGHT));
         textField.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         add(label);
-        add(Box.createVerticalStrut(4));
+        add(Box.createVerticalStrut(UITheme.SPACING_XS));
         add(textField);
     }
 

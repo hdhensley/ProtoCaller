@@ -11,6 +11,7 @@ import com.overzealouspelican.model.ApiCall;
 import com.overzealouspelican.frame.CallOutputFrame;
 import com.overzealouspelican.service.ApiCallService;
 import com.overzealouspelican.service.HttpRequestExecutor;
+import com.overzealouspelican.util.UITheme;
 
 /**
  * Modern IntelliJ-style call configuration panel.
@@ -44,7 +45,7 @@ public class CallConfigurationPanel extends JPanel {
         // Main content area with padding
         JPanel contentWrapper = new JPanel(new BorderLayout());
         contentWrapper.setBackground(UIManager.getColor("Panel.background"));
-        contentWrapper.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+        contentWrapper.setBorder(UITheme.contentPadding());
 
         JPanel contentPanel = createContentPanel();
         JScrollPane scrollPane = new JScrollPane(contentPanel);
@@ -60,16 +61,16 @@ public class CallConfigurationPanel extends JPanel {
         toolbar.setBackground(UIManager.getColor("Panel.background"));
         toolbar.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(0, 0, 1, 0, UIManager.getColor("Component.borderColor")),
-            BorderFactory.createEmptyBorder(10, 16, 10, 16)
+            BorderFactory.createEmptyBorder(UITheme.SPACING_MD, UITheme.SPACING_LG, UITheme.SPACING_MD, UITheme.SPACING_LG)
         ));
 
         // Left side - title
         JLabel titleLabel = new JLabel("API Request");
-        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 13f));
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, UITheme.FONT_SIZE_LG));
         toolbar.add(titleLabel, BorderLayout.WEST);
 
         // Right side - action buttons
-        JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, UITheme.SPACING_SM, 0));
         buttonsPanel.setOpaque(false);
 
         clearButton = new JButton("Clear");
@@ -78,6 +79,7 @@ public class CallConfigurationPanel extends JPanel {
 
         callButton = new JButton("Send");
         callButton.setToolTipText("Execute the API call");
+        UITheme.stylePrimaryButton(callButton);
         callButton.addActionListener(e -> handleCall());
 
         saveButton = new JButton("Save");
@@ -85,8 +87,8 @@ public class CallConfigurationPanel extends JPanel {
         saveButton.addActionListener(e -> handleSave());
 
         buttonsPanel.add(clearButton);
-        buttonsPanel.add(callButton);
         buttonsPanel.add(saveButton);
+        buttonsPanel.add(callButton);
 
         toolbar.add(buttonsPanel, BorderLayout.EAST);
 
@@ -101,22 +103,22 @@ public class CallConfigurationPanel extends JPanel {
         // Name input
         nameField = new LabeledTextField("Name", "Enter a name for this call");
         contentPanel.add(nameField);
-        contentPanel.add(Box.createVerticalStrut(12));
+        contentPanel.add(Box.createVerticalStrut(UITheme.SPACING_MD));
 
         // URL input with HTTP method
         urlInput = new UrlWithMethodInput();
         contentPanel.add(urlInput);
-        contentPanel.add(Box.createVerticalStrut(16));
+        contentPanel.add(Box.createVerticalStrut(UITheme.SPACING_XL));
 
         // Headers section
         headersGroup = new KeyValueInputGroup("Headers", "+ Add Header", "Remove this header");
         contentPanel.add(headersGroup);
-        contentPanel.add(Box.createVerticalStrut(16));
+        contentPanel.add(Box.createVerticalStrut(UITheme.SPACING_XL));
 
         // Body section
         bodyGroup = new KeyValueInputGroup("Body", "+ Add Parameter", "Remove this body parameter");
         contentPanel.add(bodyGroup);
-        contentPanel.add(Box.createVerticalStrut(16));
+        contentPanel.add(Box.createVerticalStrut(UITheme.SPACING_LG));
 
         return contentPanel;
     }

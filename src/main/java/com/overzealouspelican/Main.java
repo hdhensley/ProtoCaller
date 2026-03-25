@@ -4,6 +4,7 @@ import javax.swing.*;
 import com.formdev.flatlaf.FlatLightLaf;
 import com.overzealouspelican.frame.MainFrame;
 import com.overzealouspelican.service.SettingsService;
+import com.overzealouspelican.util.UITheme;
 
 /**
  * Application entry point.
@@ -29,6 +30,9 @@ public class Main {
         } catch (Exception ex) {
             System.err.println("Failed to initialize FlatLaf");
         }
+
+        // Apply modern UI defaults (rounded corners, spacing, accent colors)
+        UITheme.applyGlobalDefaults();
 
         // Create and display the main frame
         MainFrame mainFrame = new MainFrame();

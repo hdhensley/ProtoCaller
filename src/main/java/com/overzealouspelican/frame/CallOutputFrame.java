@@ -9,6 +9,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+import com.overzealouspelican.util.UITheme;
 
 /**
  * Frame to display the output of API calls.
@@ -50,11 +51,11 @@ public class CallOutputFrame extends JFrame {
         titleBar.setBackground(UIManager.getColor("Panel.background"));
         titleBar.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(0, 0, 1, 0, UIManager.getColor("Component.borderColor")),
-            BorderFactory.createEmptyBorder(10, 10, 10, 10)
+            BorderFactory.createEmptyBorder(UITheme.SPACING_MD, UITheme.SPACING_LG, UITheme.SPACING_MD, UITheme.SPACING_LG)
         ));
 
         JLabel titleLabel = new JLabel("Call Output");
-        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 14f));
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, UITheme.FONT_SIZE_XL));
         titleBar.add(titleLabel, BorderLayout.WEST);
 
         add(titleBar, BorderLayout.NORTH);
@@ -62,15 +63,16 @@ public class CallOutputFrame extends JFrame {
         // Output text area with scroll
         outputTextArea = new JTextArea();
         outputTextArea.setEditable(false);
-        outputTextArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        outputTextArea.setMargin(new Insets(10, 10, 10, 10));
+        outputTextArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        outputTextArea.setMargin(new Insets(UITheme.SPACING_LG, UITheme.SPACING_LG, UITheme.SPACING_LG, UITheme.SPACING_LG));
 
         JScrollPane scrollPane = new JScrollPane(outputTextArea);
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        scrollPane.setBorder(null);
         add(scrollPane, BorderLayout.CENTER);
 
         // Bottom button panel
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, UITheme.SPACING_MD, UITheme.SPACING_SM));
         buttonPanel.setBackground(UIManager.getColor("Panel.background"));
         buttonPanel.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, UIManager.getColor("Component.borderColor")));
 

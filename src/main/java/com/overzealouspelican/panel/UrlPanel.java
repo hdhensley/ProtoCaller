@@ -14,6 +14,7 @@ import com.overzealouspelican.model.ApiCall;
 import com.overzealouspelican.model.ApplicationState;
 import com.overzealouspelican.service.ApiCallService;
 import com.overzealouspelican.frame.ImportFrame;
+import com.overzealouspelican.util.UITheme;
 
 /**
  * Modern IntelliJ-style saved calls panel with drag-and-drop grouping support.
@@ -42,12 +43,12 @@ public class UrlPanel extends JPanel {
         JPanel toolbar = new JPanel(new BorderLayout());
         toolbar.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(0, 0, 1, 0, UIManager.getColor("Component.borderColor")),
-            BorderFactory.createEmptyBorder(10, 12, 10, 12)
+            BorderFactory.createEmptyBorder(UITheme.SPACING_MD, UITheme.SPACING_MD, UITheme.SPACING_MD, UITheme.SPACING_MD)
         ));
         toolbar.setBackground(UIManager.getColor("Panel.background"));
 
         JLabel titleLabel = new JLabel("Saved Calls");
-        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 12f));
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, UITheme.FONT_SIZE_MD));
         toolbar.add(titleLabel, BorderLayout.WEST);
 
         add(toolbar, BorderLayout.NORTH);
@@ -56,7 +57,7 @@ public class UrlPanel extends JPanel {
         listPanel = new JPanel();
         listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
         listPanel.setBackground(UIManager.getColor("Panel.background"));
-        listPanel.setBorder(BorderFactory.createEmptyBorder(4, 0, 4, 0));
+        listPanel.setBorder(BorderFactory.createEmptyBorder(UITheme.SPACING_XS, UITheme.SPACING_XS, UITheme.SPACING_XS, UITheme.SPACING_XS));
 
         JScrollPane scrollPane = new JScrollPane(listPanel);
         scrollPane.setBorder(null);
@@ -126,8 +127,8 @@ public class UrlPanel extends JPanel {
 
     private JPanel createGroupHeader(String groupName, List<String> members) {
         JPanel headerPanel = new JPanel(new BorderLayout(6, 0));
-        headerPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 32));
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+        headerPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, UITheme.LIST_ITEM_HEIGHT));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(UITheme.SPACING_XS, UITheme.SPACING_SM, UITheme.SPACING_XS, UITheme.SPACING_SM));
         headerPanel.setBackground(UIManager.getColor("Panel.background"));
         headerPanel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
@@ -135,12 +136,12 @@ public class UrlPanel extends JPanel {
 
         // Expand/collapse icon
         JLabel iconLabel = new JLabel(expanded ? "▼" : "▶");
-        iconLabel.setFont(iconLabel.getFont().deriveFont(10f));
+        iconLabel.setFont(iconLabel.getFont().deriveFont(UITheme.FONT_SIZE_XS));
         headerPanel.add(iconLabel, BorderLayout.WEST);
 
         // Group name
         JLabel nameLabel = new JLabel(groupName + " (" + members.size() + ")");
-        nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 12f));
+        nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, UITheme.FONT_SIZE_MD));
         headerPanel.add(nameLabel, BorderLayout.CENTER);
 
         // Click to expand/collapse
@@ -197,24 +198,44 @@ public class UrlPanel extends JPanel {
 
     private JPanel createApiCallItem(String name, String groupName) {
         JPanel itemPanel = new JPanel(new BorderLayout(6, 0));
-        itemPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 32));
-        int leftPadding = groupName != null ? 24 : 8;
-        itemPanel.setBorder(BorderFactory.createEmptyBorder(0, leftPadding, 0, 8));
+        itemPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, UITheme.LIST_ITEM_HEIGHT));
+        int leftPadding = groupName != null ? UITheme.SPACING_XL : UITheme.SPACING_SM;
+        itemPanel.setBorder(BorderFactory.createEmptyBorder(2, leftPadding, 2, UITheme.SPACING_SM));
         itemPanel.setBackground(UIManager.getColor("Panel.background"));
         itemPanel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
+        // Build left side with method badge + name, vertically centered
+        JPanel leftContent = new JPanel();
+        leftContent.setLayout(new BoxLayout(leftContent, BoxLayout.X_AXIS));
+        leftContent.setOpaque(false);
+
+        // Look up method for color badge
+        ApiCall call = apiCallService.loadApiCall(name);
+        if (call != null && call.getHttpMethod() != null) {
+            JLabel methodBadge = new JLabel(call.getHttpMethod());
+            methodBadge.setFont(methodBadge.getFont().deriveFont(Font.BOLD, 9f));
+            methodBadge.setForeground(UITheme.getMethodColor(call.getHttpMethod()));
+            methodBadge.setAlignmentY(Component.CENTER_ALIGNMENT);
+            leftContent.add(methodBadge);
+            leftContent.add(Box.createHorizontalStrut(UITheme.SPACING_SM));
+        }
+
         // API call name label
         JLabel nameLabel = new JLabel(name);
-        nameLabel.setFont(nameLabel.getFont().deriveFont(Font.PLAIN, 12f));
-        nameLabel.setBorder(BorderFactory.createEmptyBorder(6, 4, 6, 4));
-        itemPanel.add(nameLabel, BorderLayout.CENTER);
+        nameLabel.setFont(nameLabel.getFont().deriveFont(Font.PLAIN, UITheme.FONT_SIZE_MD));
+        nameLabel.setAlignmentY(Component.CENTER_ALIGNMENT);
+        leftContent.add(nameLabel);
+
+        itemPanel.add(leftContent, BorderLayout.CENTER);
 
         // Delete button
-        JButton deleteButton = new JButton("×");
+        JButton deleteButton = new JButton("⛔");
         deleteButton.setPreferredSize(new Dimension(28, 24));
         deleteButton.setToolTipText("Delete this saved call");
         deleteButton.setFocusPainted(false);
-        deleteButton.setFont(deleteButton.getFont().deriveFont(16f));
+        deleteButton.setContentAreaFilled(false);
+        deleteButton.setBorderPainted(false);
+        deleteButton.setFont(deleteButton.getFont().deriveFont(12f));
         deleteButton.setMargin(new Insets(0, 0, 0, 0));
         deleteButton.addActionListener(e -> deleteApiCall(name));
         itemPanel.add(deleteButton, BorderLayout.EAST);

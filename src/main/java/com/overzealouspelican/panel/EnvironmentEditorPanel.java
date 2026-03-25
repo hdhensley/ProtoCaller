@@ -12,6 +12,7 @@ import java.util.Objects;
 import com.overzealouspelican.model.ApplicationState;
 import com.overzealouspelican.model.Environment;
 import com.overzealouspelican.service.EnvironmentService;
+import com.overzealouspelican.util.UITheme;
 
 /**
  * IntelliJ-style environment editor embedded in the sidebar.
@@ -50,16 +51,16 @@ public class EnvironmentEditorPanel extends JPanel {
 
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(12, 8, 12, 8));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(UITheme.SPACING_MD, UITheme.SPACING_SM, UITheme.SPACING_MD, UITheme.SPACING_SM));
         mainPanel.setBackground(UIManager.getColor("Panel.background"));
 
         // Dropdown section
         mainPanel.add(createDropdownPanel());
-        mainPanel.add(Box.createVerticalStrut(12));
+        mainPanel.add(Box.createVerticalStrut(UITheme.SPACING_MD));
 
         // Key-value pairs section
         mainPanel.add(createKeyValuePanel());
-        mainPanel.add(Box.createVerticalStrut(12));
+        mainPanel.add(Box.createVerticalStrut(UITheme.SPACING_MD));
 
         JScrollPane scrollPane = new JScrollPane(mainPanel);
         scrollPane.setBorder(null);
@@ -68,8 +69,8 @@ public class EnvironmentEditorPanel extends JPanel {
     }
 
     private JPanel createDropdownPanel() {
-        JPanel panel = new JPanel(new BorderLayout(8, 0));
-        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        JPanel panel = new JPanel(new BorderLayout(UITheme.SPACING_SM, 0));
+        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, UITheme.INPUT_HEIGHT));
         panel.setBackground(UIManager.getColor("Panel.background"));
 
         environmentDropdown = new JComboBox<>();
@@ -77,7 +78,7 @@ public class EnvironmentEditorPanel extends JPanel {
 
         newEnvButton = new JButton("+");
         newEnvButton.setToolTipText("Create a new environment");
-        newEnvButton.setPreferredSize(new Dimension(40, 28));
+        newEnvButton.setPreferredSize(new Dimension(40, UITheme.INPUT_HEIGHT));
         newEnvButton.addActionListener(e -> handleNewEnvironment());
 
         panel.add(environmentDropdown, BorderLayout.CENTER);
@@ -97,13 +98,13 @@ public class EnvironmentEditorPanel extends JPanel {
         headerPanel.setBackground(UIManager.getColor("Panel.background"));
 
         JLabel keyHeader = new JLabel("Key");
-        keyHeader.setFont(keyHeader.getFont().deriveFont(Font.BOLD, 11f));
-        keyHeader.setForeground(UIManager.getColor("Label.foreground"));
+        keyHeader.setFont(keyHeader.getFont().deriveFont(Font.BOLD, UITheme.FONT_SIZE_SM));
+        keyHeader.setForeground(UIManager.getColor("Label.disabledForeground"));
         keyHeader.setPreferredSize(new Dimension(100, 20));
 
         JLabel valueHeader = new JLabel("Value");
-        valueHeader.setFont(valueHeader.getFont().deriveFont(Font.BOLD, 11f));
-        valueHeader.setForeground(UIManager.getColor("Label.foreground"));
+        valueHeader.setFont(valueHeader.getFont().deriveFont(Font.BOLD, UITheme.FONT_SIZE_SM));
+        valueHeader.setForeground(UIManager.getColor("Label.disabledForeground"));
 
         JLabel spacer = new JLabel("");
         spacer.setPreferredSize(new Dimension(32, 20));
@@ -113,7 +114,7 @@ public class EnvironmentEditorPanel extends JPanel {
         headerPanel.add(spacer, BorderLayout.EAST);
 
         panel.add(headerPanel);
-        panel.add(Box.createVerticalStrut(4));
+        panel.add(Box.createVerticalStrut(UITheme.SPACING_XS));
 
         // Key-value input rows container with scroll
         keyValueRowsContainer = new JPanel();
@@ -132,16 +133,16 @@ public class EnvironmentEditorPanel extends JPanel {
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
 
         panel.add(scrollPane);
-        panel.add(Box.createVerticalStrut(6));
+        panel.add(Box.createVerticalStrut(UITheme.SPACING_SM));
 
         // Button panel with Add Variable and Save buttons on same row
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        buttonPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, UITheme.SPACING_SM, 0));
+        buttonPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, UITheme.BUTTON_HEIGHT));
         buttonPanel.setBackground(UIManager.getColor("Panel.background"));
         buttonPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JButton addRowButton = new JButton("+ Add Variable");
-        addRowButton.setPreferredSize(new Dimension(140, 28));
+        addRowButton.setPreferredSize(new Dimension(140, UITheme.BUTTON_HEIGHT));
         addRowButton.addActionListener(e -> {
             addKeyValueRow();
             keyValueRowsContainer.revalidate();
@@ -150,8 +151,8 @@ public class EnvironmentEditorPanel extends JPanel {
         });
 
         saveButton = new JButton("Save");
-        saveButton.setPreferredSize(new Dimension(80, 28));
-        saveButton.setOpaque(true); // Required for background color changes
+        saveButton.setPreferredSize(new Dimension(80, UITheme.BUTTON_HEIGHT));
+        saveButton.setOpaque(true);
         saveButton.addActionListener(e -> handleSave());
 
         buttonPanel.add(addRowButton);
@@ -164,14 +165,14 @@ public class EnvironmentEditorPanel extends JPanel {
 
     private void addKeyValueRow() {
         JPanel rowPanel = new JPanel(new BorderLayout(4, 0));
-        rowPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
-        rowPanel.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
+        rowPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, UITheme.INPUT_HEIGHT));
+        rowPanel.setBorder(BorderFactory.createEmptyBorder(2, UITheme.SPACING_XS, 2, UITheme.SPACING_XS));
         rowPanel.setBackground(UIManager.getColor("Panel.background"));
 
         JTextField keyField = new JTextField();
-        keyField.setPreferredSize(new Dimension(100, 24));
-        keyField.setMinimumSize(new Dimension(100, 24));
-        keyField.setMaximumSize(new Dimension(100, 24));
+        keyField.setPreferredSize(new Dimension(100, 26));
+        keyField.setMinimumSize(new Dimension(100, 26));
+        keyField.setMaximumSize(new Dimension(100, 26));
 
         JTextField valueField = new JTextField();
 
@@ -189,9 +190,9 @@ public class EnvironmentEditorPanel extends JPanel {
         valueField.getDocument().addDocumentListener(changeListener);
 
         JButton removeButton = new JButton("×");
-        removeButton.setPreferredSize(new Dimension(32, 24));
+        removeButton.setPreferredSize(new Dimension(32, 26));
         removeButton.setToolTipText("Remove this variable");
-        removeButton.setFont(removeButton.getFont().deriveFont(16f));
+        removeButton.setFont(removeButton.getFont().deriveFont(UITheme.FONT_SIZE_TITLE));
         removeButton.setMargin(new Insets(0, 0, 0, 0));
 
         keyFields.add(keyField);

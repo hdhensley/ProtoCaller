@@ -6,6 +6,7 @@ import java.awt.*;
 import com.overzealouspelican.model.ApplicationState;
 import com.overzealouspelican.model.Environment;
 import com.overzealouspelican.service.EnvironmentService;
+import com.overzealouspelican.util.UITheme;
 
 /**
  * IntelliJ-style sidebar panel with collapsible sections for Environments and Settings.
@@ -30,7 +31,7 @@ public class SidebarPanel extends JPanel {
 
         // Create tabbed pane for different sections
         JTabbedPane tabbedPane = new JTabbedPane(JTabbedPane.TOP);
-        tabbedPane.setFont(tabbedPane.getFont().deriveFont(11f));
+        tabbedPane.setFont(tabbedPane.getFont().deriveFont(UITheme.FONT_SIZE_SM));
 
         // Environment tab
         environmentEditor = new EnvironmentEditorPanel();

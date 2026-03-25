@@ -3,6 +3,7 @@ package com.overzealouspelican.panel;
 import com.overzealouspelican.service.SettingsService;
 import com.overzealouspelican.service.SettingsService.ThemeOption;
 import com.overzealouspelican.service.StoragePathService;
+import com.overzealouspelican.util.UITheme;
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
@@ -35,22 +36,22 @@ public class SettingsEditorPanel extends JPanel {
 
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(12, 8, 12, 8));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(UITheme.SPACING_MD, UITheme.SPACING_SM, UITheme.SPACING_MD, UITheme.SPACING_SM));
         mainPanel.setBackground(UIManager.getColor("Panel.background"));
 
         // Theme section
         mainPanel.add(createSectionLabel("Appearance"));
-        mainPanel.add(Box.createVerticalStrut(8));
+        mainPanel.add(Box.createVerticalStrut(UITheme.SPACING_SM));
         mainPanel.add(createThemePanel());
-        mainPanel.add(Box.createVerticalStrut(16));
+        mainPanel.add(Box.createVerticalStrut(UITheme.SPACING_LG));
 
         // Storage section
         mainPanel.add(createSectionLabel("Storage"));
-        mainPanel.add(Box.createVerticalStrut(8));
+        mainPanel.add(Box.createVerticalStrut(UITheme.SPACING_SM));
         mainPanel.add(createStoragePanel());
-        mainPanel.add(Box.createVerticalStrut(4));
+        mainPanel.add(Box.createVerticalStrut(UITheme.SPACING_XS));
         mainPanel.add(createInfoLabel());
-        mainPanel.add(Box.createVerticalStrut(16));
+        mainPanel.add(Box.createVerticalStrut(UITheme.SPACING_LG));
 
         // Buttons
         mainPanel.add(createButtonPanel());
@@ -63,7 +64,7 @@ public class SettingsEditorPanel extends JPanel {
 
     private JLabel createSectionLabel(String text) {
         JLabel label = new JLabel(text);
-        label.setFont(label.getFont().deriveFont(Font.BOLD, 12f));
+        label.setFont(label.getFont().deriveFont(Font.BOLD, UITheme.FONT_SIZE_MD));
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
         return label;
     }
@@ -79,12 +80,12 @@ public class SettingsEditorPanel extends JPanel {
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         themeComboBox = new JComboBox<>(settingsService.getAvailableThemes());
-        themeComboBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
-        themeComboBox.setPreferredSize(new Dimension(0, 28));
+        themeComboBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, UITheme.INPUT_HEIGHT));
+        themeComboBox.setPreferredSize(new Dimension(0, UITheme.INPUT_HEIGHT));
         themeComboBox.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         panel.add(label);
-        panel.add(Box.createVerticalStrut(4));
+        panel.add(Box.createVerticalStrut(UITheme.SPACING_XS));
         panel.add(themeComboBox);
 
         return panel;
@@ -100,8 +101,8 @@ public class SettingsEditorPanel extends JPanel {
         JLabel label = new JLabel("Data Location:");
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JPanel fieldPanel = new JPanel(new BorderLayout(8, 0));
-        fieldPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        JPanel fieldPanel = new JPanel(new BorderLayout(UITheme.SPACING_SM, 0));
+        fieldPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, UITheme.INPUT_HEIGHT));
         fieldPanel.setBackground(UIManager.getColor("Panel.background"));
         fieldPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -109,14 +110,14 @@ public class SettingsEditorPanel extends JPanel {
         storageLocationField.setToolTipText("Leave empty to use default location");
 
         browseButton = new JButton("Browse...");
-        browseButton.setPreferredSize(new Dimension(100, 28));
+        browseButton.setPreferredSize(new Dimension(100, UITheme.INPUT_HEIGHT));
         browseButton.addActionListener(e -> browseForDirectory());
 
         fieldPanel.add(storageLocationField, BorderLayout.CENTER);
         fieldPanel.add(browseButton, BorderLayout.EAST);
 
         panel.add(label);
-        panel.add(Box.createVerticalStrut(4));
+        panel.add(Box.createVerticalStrut(UITheme.SPACING_XS));
         panel.add(fieldPanel);
 
         return panel;
@@ -125,7 +126,7 @@ public class SettingsEditorPanel extends JPanel {
     private JLabel createInfoLabel() {
         String defaultLocation = storagePathService.getDefaultStorageLocation().toString();
         JLabel infoLabel = new JLabel("<html><i>Default: " + defaultLocation + "</i></html>");
-        infoLabel.setFont(infoLabel.getFont().deriveFont(Font.PLAIN, 10f));
+        infoLabel.setFont(infoLabel.getFont().deriveFont(Font.PLAIN, UITheme.FONT_SIZE_XS));
         infoLabel.setForeground(UIManager.getColor("Label.disabledForeground"));
         infoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         infoLabel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
@@ -133,8 +134,8 @@ public class SettingsEditorPanel extends JPanel {
     }
 
     private JPanel createButtonPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 32));
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, UITheme.SPACING_SM, 0));
+        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, UITheme.BUTTON_HEIGHT + 4));
         panel.setBackground(UIManager.getColor("Panel.background"));
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -186,6 +187,9 @@ public class SettingsEditorPanel extends JPanel {
 
             try {
                 settingsService.applyTheme(selectedTheme.getClassName());
+
+                // Re-apply modern UITheme defaults after L&F change
+                UITheme.applyGlobalDefaults();
 
                 // Refresh UI components to prevent border issues
                 refreshAfterThemeChange();
