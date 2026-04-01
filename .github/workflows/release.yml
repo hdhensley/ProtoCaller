@@ -132,7 +132,8 @@ jobs:
             --vendor "OverzealousPelican Development" \
             --description "Privacy-focused desktop API client" \
             --java-options '-Xmx512m' \
-            --mac-package-name ProtoCaller
+            --mac-package-name ProtoCaller \
+            --icon src/main/resources/icons/app-icon.icns
 
       - name: Sign the app bundle (inside-out)
         env:
@@ -325,6 +326,7 @@ jobs:
             --description "Privacy-focused desktop API client" \
             --java-options '-Xmx512m' \
             --runtime-image custom-runtime \
+            --icon src/main/resources/icons/app-icon-512.png \
             --linux-package-name protocaller \
             --linux-app-category utils \
             --linux-shortcut
