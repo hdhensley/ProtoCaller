@@ -2,8 +2,11 @@ package com.overzealouspelican.frame;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
 import com.overzealouspelican.panel.*;
 import com.overzealouspelican.model.ApplicationState;
+import com.overzealouspelican.util.IconUtils;
 
 /**
  * Main application frame with IntelliJ-style modern UI.
@@ -50,9 +53,36 @@ public class MainFrame extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
+        setAppIcon();
 
         // Create and set menu bar
         setJMenuBar(createMenuBar());
+    }
+
+    private void setAppIcon() {
+        int[] sizes = {16, 32, 64, 128, 256, 512};
+        List<Image> icons = new ArrayList<>();
+
+        for (int size : sizes) {
+            ImageIcon icon = IconUtils.loadIcon("app-icon-" + size + ".png", size);
+            if (icon != null) {
+                icons.add(icon.getImage());
+            }
+        }
+
+        if (icons.isEmpty()) {
+            return;
+        }
+
+        setIconImages(icons);
+
+        // Set dock icon on macOS when supported.
+        if (Taskbar.isTaskbarSupported()) {
+            Taskbar taskbar = Taskbar.getTaskbar();
+            if (taskbar.isSupported(Taskbar.Feature.ICON_IMAGE)) {
+                taskbar.setIconImage(icons.get(icons.size() - 1));
+            }
+        }
     }
 
     /**
