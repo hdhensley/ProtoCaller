@@ -21,10 +21,35 @@ java -jar target/protocaller-api-client-1.0-SNAPSHOT.jar
 
 ### macOS (DMG)
 
+First, generate an ICNS file from your PNG icon (run once whenever the icon changes):
+
+```bash
+mkdir -p AppIcon.iconset
+sips -z 16 16 src/main/resources/icons/app-icon-512.png --out AppIcon.iconset/icon_16x16.png
+sips -z 32 32 src/main/resources/icons/app-icon-512.png --out AppIcon.iconset/icon_16x16@2x.png
+sips -z 32 32 src/main/resources/icons/app-icon-512.png --out AppIcon.iconset/icon_32x32.png
+sips -z 64 64 src/main/resources/icons/app-icon-512.png --out AppIcon.iconset/icon_32x32@2x.png
+sips -z 128 128 src/main/resources/icons/app-icon-512.png --out AppIcon.iconset/icon_128x128.png
+sips -z 256 256 src/main/resources/icons/app-icon-512.png --out AppIcon.iconset/icon_128x128@2x.png
+sips -z 256 256 src/main/resources/icons/app-icon-512.png --out AppIcon.iconset/icon_256x256.png
+sips -z 512 512 src/main/resources/icons/app-icon-512.png --out AppIcon.iconset/icon_256x256@2x.png
+sips -z 512 512 src/main/resources/icons/app-icon-512.png --out AppIcon.iconset/icon_512x512.png
+iconutil -c icns AppIcon.iconset -o src/main/resources/icons/app-icon.icns
+rm -rf AppIcon.iconset
+```
+
+Then build the DMG with Maven (this runs `jpackage` with the custom icon):
+
+```bash
+mvn clean package -Ppackage-dmg
+```
+
+Or run `jpackage` directly:
+
 ```bash
 jpackage \
   --input target \
-  --main-jar protocaller-api-client-1.0-SNAPSHOT.jar \
+  --main-jar protocaller-api-client-1.0.0-SNAPSHOT.jar \
   --main-class com.overzealouspelican.Main \
   --name "ProtoCaller API Client" \
   --type dmg \
@@ -32,7 +57,8 @@ jpackage \
   --vendor "ProtoCaller" \
   --description "Privacy-focused desktop API client" \
   --java-options '-Xmx512m' \
-  --mac-package-name ProtoCaller
+  --mac-package-name ProtoCaller \
+  --icon src/main/resources/icons/app-icon.icns
 ```
 
 ### Windows (EXE)
