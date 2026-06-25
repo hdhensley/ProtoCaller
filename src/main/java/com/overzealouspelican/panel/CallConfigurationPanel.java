@@ -22,6 +22,7 @@ public class CallConfigurationPanel extends JPanel {
     private JButton callButton;
     private JButton clearButton;
     private LabeledTextField nameField;
+    private JTextArea descriptionArea;
     private UrlWithMethodInput urlInput;
     private KeyValueInputGroup headersGroup;
     private KeyValueInputGroup bodyGroup;
@@ -47,12 +48,7 @@ public class CallConfigurationPanel extends JPanel {
         contentWrapper.setBackground(UIManager.getColor("Panel.background"));
         contentWrapper.setBorder(UITheme.contentPadding());
 
-        JPanel contentPanel = createContentPanel();
-        JScrollPane scrollPane = new JScrollPane(contentPanel);
-        scrollPane.setBorder(null);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-
-        contentWrapper.add(scrollPane, BorderLayout.CENTER);
+        contentWrapper.add(createContentPanel(), BorderLayout.CENTER);
         add(contentWrapper, BorderLayout.CENTER);
     }
 
@@ -96,29 +92,63 @@ public class CallConfigurationPanel extends JPanel {
     }
 
     private JPanel createContentPanel() {
-        JPanel contentPanel = new JPanel();
-        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+        JPanel contentPanel = new JPanel(new BorderLayout(0, UITheme.SPACING_MD));
         contentPanel.setBackground(UIManager.getColor("Panel.background"));
+
+        // Top section: Name + URL (fixed height)
+        JPanel topSection = new JPanel();
+        topSection.setLayout(new BoxLayout(topSection, BoxLayout.Y_AXIS));
+        topSection.setBackground(UIManager.getColor("Panel.background"));
 
         // Name input
         nameField = new LabeledTextField("Name", "Enter a name for this call");
-        contentPanel.add(nameField);
-        contentPanel.add(Box.createVerticalStrut(UITheme.SPACING_MD));
+        topSection.add(nameField);
+        topSection.add(Box.createVerticalStrut(UITheme.SPACING_MD));
 
         // URL input with HTTP method
         urlInput = new UrlWithMethodInput();
-        contentPanel.add(urlInput);
-        contentPanel.add(Box.createVerticalStrut(UITheme.SPACING_XL));
+        topSection.add(urlInput);
 
-        // Headers section
+        contentPanel.add(topSection, BorderLayout.NORTH);
+
+        // Description panel (resizable via split pane)
+        JPanel descriptionPanel = new JPanel(new BorderLayout(0, UITheme.SPACING_XS));
+        descriptionPanel.setBackground(UIManager.getColor("Panel.background"));
+
+        JLabel descLabel = new JLabel("Description");
+        descLabel.setFont(descLabel.getFont().deriveFont(Font.PLAIN, UITheme.FONT_SIZE_SM));
+        descLabel.setForeground(UIManager.getColor("Label.foreground"));
+        descriptionPanel.add(descLabel, BorderLayout.NORTH);
+
+        descriptionArea = new JTextArea(3, 20);
+        descriptionArea.setLineWrap(true);
+        descriptionArea.setWrapStyleWord(true);
+        descriptionArea.setToolTipText("Optional description for this call");
+        descriptionArea.setFont(UIManager.getFont("TextField.font"));
+
+        JScrollPane descScrollPane = new JScrollPane(descriptionArea);
+        descScrollPane.setMinimumSize(new Dimension(0, 40));
+        descriptionPanel.add(descScrollPane, BorderLayout.CENTER);
+
+        // Center section: Headers and Body split evenly
+        JPanel kvPanel = new JPanel(new GridLayout(2, 1, 0, UITheme.SPACING_MD));
+        kvPanel.setBackground(UIManager.getColor("Panel.background"));
+
         headersGroup = new KeyValueInputGroup("Headers", "+ Add Header", "Remove this header");
-        contentPanel.add(headersGroup);
-        contentPanel.add(Box.createVerticalStrut(UITheme.SPACING_XL));
-
-        // Body section
         bodyGroup = new KeyValueInputGroup("Body", "+ Add Parameter", "Remove this body parameter");
-        contentPanel.add(bodyGroup);
-        contentPanel.add(Box.createVerticalStrut(UITheme.SPACING_LG));
+
+        kvPanel.add(headersGroup);
+        kvPanel.add(bodyGroup);
+
+        // Split pane: description on top, headers/body on bottom (user-resizable)
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, descriptionPanel, kvPanel);
+        splitPane.setDividerLocation(80);
+        splitPane.setDividerSize(6);
+        splitPane.setContinuousLayout(true);
+        splitPane.setBorder(null);
+        splitPane.setBackground(UIManager.getColor("Panel.background"));
+
+        contentPanel.add(splitPane, BorderLayout.CENTER);
 
         return contentPanel;
     }
@@ -252,6 +282,12 @@ public class CallConfigurationPanel extends JPanel {
                 apiCall.setGroupName(currentGroupName);
             }
 
+            // Set optional description
+            String description = descriptionArea.getText();
+            if (description != null && !description.trim().isEmpty()) {
+                apiCall.setDescription(description.trim());
+            }
+
             apiCallService.saveApiCall(apiCall);
 
 //            JOptionPane.showMessageDialog(this,
@@ -280,6 +316,7 @@ public class CallConfigurationPanel extends JPanel {
         nameField.setText("");
         urlInput.setUrl("");
         urlInput.setHttpMethod("GET");
+        descriptionArea.setText("");
         headersGroup.clear();
         bodyGroup.clear();
 
@@ -523,6 +560,7 @@ public class CallConfigurationPanel extends JPanel {
         nameField.setText(apiCall.getName());
         urlInput.setUrl(apiCall.getUrl());
         urlInput.setHttpMethod(apiCall.getHttpMethod());
+        descriptionArea.setText(apiCall.getDescription() != null ? apiCall.getDescription() : "");
         headersGroup.setKeyValuePairs(apiCall.getHeaders());
         bodyGroup.setKeyValuePairs(apiCall.getBody());
 

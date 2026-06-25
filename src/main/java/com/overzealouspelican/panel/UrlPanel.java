@@ -1,7 +1,6 @@
 package com.overzealouspelican.panel;
 
 import javax.swing.*;
-import javax.swing.border.MatteBorder;
 import java.awt.*;
 import java.awt.datatransfer.*;
 import java.awt.dnd.*;
@@ -13,7 +12,6 @@ import java.util.List;
 import com.overzealouspelican.model.ApiCall;
 import com.overzealouspelican.model.ApplicationState;
 import com.overzealouspelican.service.ApiCallService;
-import com.overzealouspelican.frame.ImportFrame;
 import com.overzealouspelican.util.UITheme;
 
 /**
@@ -26,6 +24,7 @@ public class UrlPanel extends JPanel {
     private JPanel listPanel;
     private CallConfigurationPanel configPanel;
     private Map<String, Boolean> groupExpandedState;
+    private JButton toggleAllButton;
 
     public UrlPanel() {
         this.apiCallService = new ApiCallService();
@@ -50,6 +49,37 @@ public class UrlPanel extends JPanel {
         JLabel titleLabel = new JLabel("Saved Calls");
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, UITheme.FONT_SIZE_MD));
         toolbar.add(titleLabel, BorderLayout.WEST);
+
+        // Collapse/Expand all toggle button
+        toggleAllButton = new JButton("⊟");
+        toggleAllButton.setToolTipText("Collapse all groups");
+        toggleAllButton.setFont(toggleAllButton.getFont().deriveFont(14f));
+        toggleAllButton.setPreferredSize(new Dimension(28, 24));
+        toggleAllButton.setFocusPainted(false);
+        toggleAllButton.setContentAreaFilled(false);
+        toggleAllButton.setBorderPainted(false);
+        toggleAllButton.setMargin(new Insets(0, 0, 0, 0));
+        toggleAllButton.addActionListener(e -> {
+            boolean anyExpanded = groupExpandedState.values().stream().anyMatch(v -> v);
+            // If no groups have been toggled yet, they default to expanded
+            if (groupExpandedState.isEmpty()) {
+                anyExpanded = true;
+            }
+            boolean newState = !anyExpanded;
+            // Apply to all known groups
+            Map<String, ApiCall> apiCalls = apiCallService.loadApiCalls();
+            for (ApiCall call : apiCalls.values()) {
+                String groupName = call.getGroupName();
+                if (groupName != null && !groupName.trim().isEmpty()) {
+                    groupExpandedState.put(groupName, newState);
+                }
+            }
+            // Update button icon
+            toggleAllButton.setText(newState ? "⊟" : "⊞");
+            toggleAllButton.setToolTipText(newState ? "Collapse all groups" : "Expand all groups");
+            loadApiCallsList();
+        });
+        toolbar.add(toggleAllButton, BorderLayout.EAST);
 
         add(toolbar, BorderLayout.NORTH);
 
@@ -100,6 +130,19 @@ public class UrlPanel extends JPanel {
             } else {
                 ungrouped.add(name);
             }
+        }
+
+        // Update toggle button icon based on current state
+        if (toggleAllButton != null && !groups.isEmpty()) {
+            boolean anyExpanded = false;
+            for (String groupName : groups.keySet()) {
+                if (groupExpandedState.getOrDefault(groupName, true)) {
+                    anyExpanded = true;
+                    break;
+                }
+            }
+            toggleAllButton.setText(anyExpanded ? "⊟" : "⊞");
+            toggleAllButton.setToolTipText(anyExpanded ? "Collapse all groups" : "Expand all groups");
         }
 
         // Add grouped items

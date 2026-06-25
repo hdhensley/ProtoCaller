@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import com.overzealouspelican.model.ApplicationState;
 import com.overzealouspelican.model.Environment;
 import com.overzealouspelican.service.EnvironmentService;
@@ -48,24 +47,59 @@ public class EnvironmentEditorPanel extends JPanel {
     private void initializePanel() {
         setLayout(new BorderLayout(0, 0));
         setBackground(UIManager.getColor("Panel.background"));
+        setBorder(BorderFactory.createEmptyBorder(UITheme.SPACING_MD, UITheme.SPACING_SM, UITheme.SPACING_MD, UITheme.SPACING_SM));
 
-        JPanel mainPanel = new JPanel();
-        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(UITheme.SPACING_MD, UITheme.SPACING_SM, UITheme.SPACING_MD, UITheme.SPACING_SM));
-        mainPanel.setBackground(UIManager.getColor("Panel.background"));
+        // Top section: dropdown + header (fixed height)
+        JPanel topPanel = new JPanel();
+        topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
+        topPanel.setBackground(UIManager.getColor("Panel.background"));
 
-        // Dropdown section
-        mainPanel.add(createDropdownPanel());
-        mainPanel.add(Box.createVerticalStrut(UITheme.SPACING_MD));
+        topPanel.add(createDropdownPanel());
+        topPanel.add(Box.createVerticalStrut(UITheme.SPACING_MD));
+        topPanel.add(createKeyValueHeader());
+        topPanel.add(Box.createVerticalStrut(UITheme.SPACING_XS));
 
-        // Key-value pairs section
-        mainPanel.add(createKeyValuePanel());
-        mainPanel.add(Box.createVerticalStrut(UITheme.SPACING_MD));
+        add(topPanel, BorderLayout.NORTH);
 
-        JScrollPane scrollPane = new JScrollPane(mainPanel);
+        // Center section: scrollable key-value rows (fills remaining space)
+        keyValueRowsContainer = new JPanel();
+        keyValueRowsContainer.setLayout(new BoxLayout(keyValueRowsContainer, BoxLayout.Y_AXIS));
+        keyValueRowsContainer.setBackground(UIManager.getColor("Panel.background"));
+
+        for (int i = 0; i < INITIAL_KEY_VALUE_ROWS; i++) {
+            addKeyValueRow();
+        }
+
+        JScrollPane scrollPane = new JScrollPane(keyValueRowsContainer);
         scrollPane.setBorder(null);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+
         add(scrollPane, BorderLayout.CENTER);
+
+        // Bottom section: buttons (fixed height)
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, UITheme.SPACING_SM, 0));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(UITheme.SPACING_SM, 0, 0, 0));
+        buttonPanel.setBackground(UIManager.getColor("Panel.background"));
+
+        JButton addRowButton = new JButton("+ Add Variable");
+        addRowButton.setPreferredSize(new Dimension(140, UITheme.BUTTON_HEIGHT));
+        addRowButton.addActionListener(e -> {
+            addKeyValueRow();
+            keyValueRowsContainer.revalidate();
+            keyValueRowsContainer.repaint();
+            checkForChanges();
+        });
+
+        saveButton = new JButton("Save");
+        saveButton.setPreferredSize(new Dimension(80, UITheme.BUTTON_HEIGHT));
+        saveButton.setOpaque(true);
+        saveButton.addActionListener(e -> handleSave());
+
+        buttonPanel.add(addRowButton);
+        buttonPanel.add(saveButton);
+
+        add(buttonPanel, BorderLayout.SOUTH);
     }
 
     private JPanel createDropdownPanel() {
@@ -87,12 +121,7 @@ public class EnvironmentEditorPanel extends JPanel {
         return panel;
     }
 
-    private JPanel createKeyValuePanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(UIManager.getColor("Panel.background"));
-
-        // Header
+    private JPanel createKeyValueHeader() {
         JPanel headerPanel = new JPanel(new BorderLayout(8, 0));
         headerPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
         headerPanel.setBackground(UIManager.getColor("Panel.background"));
@@ -113,54 +142,7 @@ public class EnvironmentEditorPanel extends JPanel {
         headerPanel.add(valueHeader, BorderLayout.CENTER);
         headerPanel.add(spacer, BorderLayout.EAST);
 
-        panel.add(headerPanel);
-        panel.add(Box.createVerticalStrut(UITheme.SPACING_XS));
-
-        // Key-value input rows container with scroll
-        keyValueRowsContainer = new JPanel();
-        keyValueRowsContainer.setLayout(new BoxLayout(keyValueRowsContainer, BoxLayout.Y_AXIS));
-        keyValueRowsContainer.setBackground(UIManager.getColor("Panel.background"));
-
-        for (int i = 0; i < INITIAL_KEY_VALUE_ROWS; i++) {
-            addKeyValueRow();
-        }
-
-        JScrollPane scrollPane = new JScrollPane(keyValueRowsContainer);
-        scrollPane.setBorder(null);
-        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        scrollPane.setPreferredSize(new Dimension(0, 250));
-        scrollPane.setMaximumSize(new Dimension(Integer.MAX_VALUE, 250));
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-
-        panel.add(scrollPane);
-        panel.add(Box.createVerticalStrut(UITheme.SPACING_SM));
-
-        // Button panel with Add Variable and Save buttons on same row
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, UITheme.SPACING_SM, 0));
-        buttonPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, UITheme.BUTTON_HEIGHT));
-        buttonPanel.setBackground(UIManager.getColor("Panel.background"));
-        buttonPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JButton addRowButton = new JButton("+ Add Variable");
-        addRowButton.setPreferredSize(new Dimension(140, UITheme.BUTTON_HEIGHT));
-        addRowButton.addActionListener(e -> {
-            addKeyValueRow();
-            keyValueRowsContainer.revalidate();
-            keyValueRowsContainer.repaint();
-            checkForChanges();
-        });
-
-        saveButton = new JButton("Save");
-        saveButton.setPreferredSize(new Dimension(80, UITheme.BUTTON_HEIGHT));
-        saveButton.setOpaque(true);
-        saveButton.addActionListener(e -> handleSave());
-
-        buttonPanel.add(addRowButton);
-        buttonPanel.add(saveButton);
-
-        panel.add(buttonPanel);
-
-        return panel;
+        return headerPanel;
     }
 
     private void addKeyValueRow() {

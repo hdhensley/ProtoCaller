@@ -2,7 +2,6 @@ package com.overzealouspelican.panel;
 
 import javax.swing.*;
 import java.awt.*;
-import com.overzealouspelican.util.IconUtils;
 import com.overzealouspelican.util.UITheme;
 
 /**

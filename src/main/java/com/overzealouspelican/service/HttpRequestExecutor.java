@@ -32,9 +32,6 @@ public class HttpRequestExecutor {
      */
     public HttpCallResult execute(ApiCall apiCall, Map<String, String> resolvedHeaders,
                                    Map<String, String> resolvedBody) {
-        String originalDisableHostnameVerification = null;
-        boolean modifiedSystemProperty = false;
-
         try {
             String url = apiCall.getUrl();
 
@@ -65,19 +62,9 @@ public class HttpRequestExecutor {
 
                 try {
                     verifyHostnameResolution(url);
-
-                    // Temporarily disable SSL endpoint identification for localhost
-                    synchronized (HttpRequestExecutor.class) {
-                        originalDisableHostnameVerification = System.getProperty("jdk.internal.httpclient.disableHostnameVerification");
-                        System.setProperty("jdk.internal.httpclient.disableHostnameVerification", "true");
-                        modifiedSystemProperty = true;
-                        System.out.println("Disabled hostname verification for localhost request");
-                    }
-
                     clientToUse = clientFactory.createInsecureClient();
                 } catch (UnknownHostException e) {
                     System.out.println("Could not resolve hostname via system DNS, falling back to default client");
-                    modifiedSystemProperty = false;
                 }
             }
 
@@ -104,18 +91,6 @@ public class HttpRequestExecutor {
                 0,
                 e
             );
-        } finally {
-            // ALWAYS restore original system property if we changed it
-            if (modifiedSystemProperty) {
-                synchronized (HttpRequestExecutor.class) {
-                    if (originalDisableHostnameVerification != null) {
-                        System.setProperty("jdk.internal.httpclient.disableHostnameVerification", originalDisableHostnameVerification);
-                    } else {
-                        System.clearProperty("jdk.internal.httpclient.disableHostnameVerification");
-                    }
-                    System.out.println("Restored hostname verification setting");
-                }
-            }
         }
     }
 

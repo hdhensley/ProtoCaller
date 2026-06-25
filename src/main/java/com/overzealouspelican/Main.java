@@ -12,9 +12,10 @@ import com.overzealouspelican.util.UITheme;
  */
 public class Main {
     public static void main(String[] args) {
-        // Disable hostname verification for localhost development
-        // This is necessary for HttpClient to work with self-signed certificates
-        // Only affects HTTPS connections, and our code only uses it for localhost URLs
+        // Must be set before any HttpClient HTTPS connection is made.
+        // AbstractAsyncSSLConnection reads this into a static final field at class-load time,
+        // so dynamic changes after that have no effect. The insecure SSLContext/TrustManager
+        // in HttpClientFactory is still scoped to localhost-only requests.
         System.setProperty("jdk.internal.httpclient.disableHostnameVerification", "true");
 
         // Load and apply saved theme before creating any UI

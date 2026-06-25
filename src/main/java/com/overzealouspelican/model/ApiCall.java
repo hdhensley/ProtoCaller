@@ -13,6 +13,7 @@ public class ApiCall {
     private Map<String, String> headers;
     private Map<String, String> body;
     private String groupName; // Group this API call belongs to
+    private String description; // Optional description of the API call
 
     public ApiCall() {
         this.headers = new HashMap<>();
@@ -73,6 +74,14 @@ public class ApiCall {
 
     public void setGroupName(String groupName) {
         this.groupName = groupName;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     @Override

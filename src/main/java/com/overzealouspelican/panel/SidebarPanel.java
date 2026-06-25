@@ -1,27 +1,17 @@
 package com.overzealouspelican.panel;
 
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import com.overzealouspelican.model.ApplicationState;
-import com.overzealouspelican.model.Environment;
-import com.overzealouspelican.service.EnvironmentService;
 import com.overzealouspelican.util.UITheme;
 
 /**
  * IntelliJ-style sidebar panel with collapsible sections for Environments and Settings.
  */
 public class SidebarPanel extends JPanel {
-
-    private final ApplicationState appState;
-    private final EnvironmentService environmentService;
-    private JComboBox<String> environmentDropdown;
     private EnvironmentEditorPanel environmentEditor;
     private SettingsEditorPanel settingsEditor;
 
     public SidebarPanel() {
-        this.appState = ApplicationState.getInstance();
-        this.environmentService = new EnvironmentService();
         initializePanel();
     }
 

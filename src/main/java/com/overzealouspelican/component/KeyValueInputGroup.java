@@ -34,17 +34,20 @@ public class KeyValueInputGroup extends JPanel {
     }
 
     private void initializePanel() {
-        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
-        setAlignmentX(Component.LEFT_ALIGNMENT);
+        setLayout(new BorderLayout(0, 0));
         setBackground(UIManager.getColor("Panel.background"));
+
+        // Top section: label + column headers
+        JPanel topPanel = new JPanel();
+        topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
+        topPanel.setBackground(UIManager.getColor("Panel.background"));
 
         // Group label
         JLabel label = new JLabel(groupLabel);
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
         label.setFont(label.getFont().deriveFont(Font.BOLD, UITheme.FONT_SIZE_MD));
-        add(label);
-        add(Box.createVerticalStrut(UITheme.SPACING_SM));
+        topPanel.add(label);
+        topPanel.add(Box.createVerticalStrut(UITheme.SPACING_SM));
 
         // Column labels
         JPanel columnLabelsPanel = new JPanel(new BorderLayout(8, 0));
@@ -68,10 +71,12 @@ public class KeyValueInputGroup extends JPanel {
         columnLabelsPanel.add(valueLabel, BorderLayout.CENTER);
         columnLabelsPanel.add(spacer, BorderLayout.EAST);
 
-        add(columnLabelsPanel);
-        add(Box.createVerticalStrut(UITheme.SPACING_XS));
+        topPanel.add(columnLabelsPanel);
+        topPanel.add(Box.createVerticalStrut(UITheme.SPACING_XS));
 
-        // Rows container with scroll
+        add(topPanel, BorderLayout.NORTH);
+
+        // Center: Rows container with scroll (fills available space)
         rowsContainer.setLayout(new BoxLayout(rowsContainer, BoxLayout.Y_AXIS));
         rowsContainer.setBackground(UIManager.getColor("Panel.background"));
         addRow(); // Start with 1 row
@@ -80,25 +85,26 @@ public class KeyValueInputGroup extends JPanel {
         scrollPane.setBorder(BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1));
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-        scrollPane.setPreferredSize(new Dimension(0, 200));
-        scrollPane.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
-        scrollPane.setAlignmentX(Component.LEFT_ALIGNMENT);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
         scrollPane.getHorizontalScrollBar().setUnitIncrement(16);
 
-        add(scrollPane);
-        add(Box.createVerticalStrut(UITheme.SPACING_SM));
+        add(scrollPane, BorderLayout.CENTER);
 
-        // Add Row button
+        // Bottom: Add Row button
+        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        bottomPanel.setBorder(BorderFactory.createEmptyBorder(UITheme.SPACING_SM, 0, 0, 0));
+        bottomPanel.setBackground(UIManager.getColor("Panel.background"));
+
         JButton addRowButton = new JButton(addButtonText);
-        addRowButton.setAlignmentX(Component.LEFT_ALIGNMENT);
-        addRowButton.setMaximumSize(new Dimension(150, 28));
+        addRowButton.setPreferredSize(new Dimension(150, 28));
         addRowButton.addActionListener(e -> {
             addRow();
             rowsContainer.revalidate();
             rowsContainer.repaint();
         });
-        add(addRowButton);
+        bottomPanel.add(addRowButton);
+
+        add(bottomPanel, BorderLayout.SOUTH);
     }
 
     private void addRow() {
