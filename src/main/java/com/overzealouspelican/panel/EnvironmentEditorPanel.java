@@ -8,13 +8,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import com.overzealouspelican.model.ApplicationState;
+import com.overzealouspelican.controller.EnvironmentFormController;
 import com.overzealouspelican.model.Environment;
-import com.overzealouspelican.service.EnvironmentService;
+import com.overzealouspelican.util.SaveButtonStyler;
 import com.overzealouspelican.util.UITheme;
 
 /**
- * IntelliJ-style environment editor embedded in the sidebar.
+ * UI panel for editing environment variables.
+ * Single responsibility: lay out the environment form and delegate state management to the controller.
  */
 public class EnvironmentEditorPanel extends JPanel {
 
@@ -25,20 +26,16 @@ public class EnvironmentEditorPanel extends JPanel {
     private List<JTextField> valueFields;
     private List<JButton> removeButtons;
     private JPanel keyValueRowsContainer;
-    private ApplicationState appState;
-    private EnvironmentService environmentService;
     private JButton saveButton;
-    private JButton newEnvButton;
-    private Map<String, String> originalEnvironmentState;
     private boolean isLoadingEnvironment;
+
+    private final EnvironmentFormController formController;
 
     public EnvironmentEditorPanel() {
         keyFields = new ArrayList<>();
         valueFields = new ArrayList<>();
         removeButtons = new ArrayList<>();
-        appState = ApplicationState.getInstance();
-        environmentService = new EnvironmentService();
-        originalEnvironmentState = new HashMap<>();
+        formController = new EnvironmentFormController();
         isLoadingEnvironment = false;
         initializePanel();
         loadEnvironmentsFromDisk();
@@ -49,7 +46,7 @@ public class EnvironmentEditorPanel extends JPanel {
         setBackground(UIManager.getColor("Panel.background"));
         setBorder(BorderFactory.createEmptyBorder(UITheme.SPACING_MD, UITheme.SPACING_SM, UITheme.SPACING_MD, UITheme.SPACING_SM));
 
-        // Top section: dropdown + header (fixed height)
+        // Top section: dropdown + header
         JPanel topPanel = new JPanel();
         topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
         topPanel.setBackground(UIManager.getColor("Panel.background"));
@@ -61,7 +58,7 @@ public class EnvironmentEditorPanel extends JPanel {
 
         add(topPanel, BorderLayout.NORTH);
 
-        // Center section: scrollable key-value rows (fills remaining space)
+        // Center: scrollable key-value rows
         keyValueRowsContainer = new JPanel();
         keyValueRowsContainer.setLayout(new BoxLayout(keyValueRowsContainer, BoxLayout.Y_AXIS));
         keyValueRowsContainer.setBackground(UIManager.getColor("Panel.background"));
@@ -77,7 +74,7 @@ public class EnvironmentEditorPanel extends JPanel {
 
         add(scrollPane, BorderLayout.CENTER);
 
-        // Bottom section: buttons (fixed height)
+        // Bottom: buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, UITheme.SPACING_SM, 0));
         buttonPanel.setBorder(BorderFactory.createEmptyBorder(UITheme.SPACING_SM, 0, 0, 0));
         buttonPanel.setBackground(UIManager.getColor("Panel.background"));
@@ -88,7 +85,7 @@ public class EnvironmentEditorPanel extends JPanel {
             addKeyValueRow();
             keyValueRowsContainer.revalidate();
             keyValueRowsContainer.repaint();
-            checkForChanges();
+            updateSaveButtonState();
         });
 
         saveButton = new JButton("Save");
@@ -110,7 +107,7 @@ public class EnvironmentEditorPanel extends JPanel {
         environmentDropdown = new JComboBox<>();
         environmentDropdown.addActionListener(e -> loadSelectedEnvironment());
 
-        newEnvButton = new JButton("+");
+        JButton newEnvButton = new JButton("+");
         newEnvButton.setToolTipText("Create a new environment");
         newEnvButton.setPreferredSize(new Dimension(40, UITheme.INPUT_HEIGHT));
         newEnvButton.addActionListener(e -> handleNewEnvironment());
@@ -158,20 +155,19 @@ public class EnvironmentEditorPanel extends JPanel {
 
         JTextField valueField = new JTextField();
 
-        // Add document listeners to track changes
         DocumentListener changeListener = new DocumentListener() {
             @Override
-            public void insertUpdate(DocumentEvent e) { checkForChanges(); }
+            public void insertUpdate(DocumentEvent e) { updateSaveButtonState(); }
             @Override
-            public void removeUpdate(DocumentEvent e) { checkForChanges(); }
+            public void removeUpdate(DocumentEvent e) { updateSaveButtonState(); }
             @Override
-            public void changedUpdate(DocumentEvent e) { checkForChanges(); }
+            public void changedUpdate(DocumentEvent e) { updateSaveButtonState(); }
         };
 
         keyField.getDocument().addDocumentListener(changeListener);
         valueField.getDocument().addDocumentListener(changeListener);
 
-        JButton removeButton = new JButton("×");
+        JButton removeButton = new JButton("\u00D7");
         removeButton.setPreferredSize(new Dimension(32, 26));
         removeButton.setToolTipText("Remove this variable");
         removeButton.setFont(removeButton.getFont().deriveFont(UITheme.FONT_SIZE_TITLE));
@@ -182,23 +178,17 @@ public class EnvironmentEditorPanel extends JPanel {
         removeButtons.add(removeButton);
 
         removeButton.addActionListener(e -> {
-            // Disable button immediately to prevent double-clicks
             removeButton.setEnabled(false);
-
             int index = removeButtons.indexOf(removeButton);
 
             if (index >= 0 && index < keyFields.size()) {
-                // Remove from lists
                 keyFields.remove(index);
                 valueFields.remove(index);
                 removeButtons.remove(index);
-
-                // Remove from UI
                 keyValueRowsContainer.remove(rowPanel);
-
                 keyValueRowsContainer.revalidate();
                 keyValueRowsContainer.repaint();
-                checkForChanges();
+                updateSaveButtonState();
             }
         });
 
@@ -209,8 +199,10 @@ public class EnvironmentEditorPanel extends JPanel {
         keyValueRowsContainer.add(rowPanel);
     }
 
+    // --- Action handlers ---
+
     private void loadEnvironmentsFromDisk() {
-        Map<String, Environment> environments = environmentService.loadEnvironments();
+        Map<String, Environment> environments = formController.loadEnvironments();
 
         environmentDropdown.removeAllItems();
 
@@ -225,7 +217,7 @@ public class EnvironmentEditorPanel extends JPanel {
                 environmentDropdown.addItem(envName);
             }
 
-            String currentEnv = appState.getSelectedEnvironment();
+            String currentEnv = com.overzealouspelican.model.ApplicationState.getInstance().getSelectedEnvironment();
             if (environments.containsKey(currentEnv)) {
                 environmentDropdown.setSelectedItem(currentEnv);
             }
@@ -240,10 +232,7 @@ public class EnvironmentEditorPanel extends JPanel {
 
         isLoadingEnvironment = true;
 
-        // Update app state
-        appState.setSelectedEnvironment(selectedName);
-
-        Environment env = environmentService.loadEnvironment(selectedName);
+        Environment env = formController.loadEnvironment(selectedName);
 
         keyValueRowsContainer.removeAll();
         keyFields.clear();
@@ -251,11 +240,8 @@ public class EnvironmentEditorPanel extends JPanel {
         removeButtons.clear();
 
         if (env != null && !env.getVariables().isEmpty()) {
-            // Update app state with the loaded environment variables
-            appState.setEnvironmentVariables(env.getVariables());
-
-            // Store the original state for change tracking
-            originalEnvironmentState = new HashMap<>(env.getVariables());
+            formController.applyEnvironmentToAppState(selectedName, env.getVariables());
+            formController.setOriginalState(env.getVariables());
 
             for (Map.Entry<String, String> entry : env.getVariables().entrySet()) {
                 addKeyValueRow();
@@ -264,11 +250,8 @@ public class EnvironmentEditorPanel extends JPanel {
                 valueFields.get(lastIndex).setText(entry.getValue());
             }
         } else {
-            // Clear environment variables in app state if environment is empty
-            appState.setEnvironmentVariables(new HashMap<>());
-
-            // Store empty original state
-            originalEnvironmentState = new HashMap<>();
+            formController.applyEnvironmentToAppState(selectedName, new HashMap<>());
+            formController.setOriginalState(new HashMap<>());
 
             for (int i = 0; i < INITIAL_KEY_VALUE_ROWS; i++) {
                 addKeyValueRow();
@@ -279,56 +262,15 @@ public class EnvironmentEditorPanel extends JPanel {
         keyValueRowsContainer.repaint();
 
         isLoadingEnvironment = false;
-        checkForChanges();
+        updateSaveButtonState();
     }
 
     private void handleSave() {
-        // Check if there are actually changes to save
-        Map<String, String> currentState = new HashMap<>();
-        for (int i = 0; i < keyFields.size(); i++) {
-            String key = keyFields.get(i).getText().trim();
-            String value = valueFields.get(i).getText().trim();
-
-            if (!key.isEmpty() && !value.isEmpty()) {
-                currentState.put(key, value);
-            }
-        }
-
-        // If no changes, don't proceed with save
-        if (currentState.equals(originalEnvironmentState)) {
-            appState.setStatus("No changes to save", "ℹ️");
-            return;
-        }
-
-        appState.setStatus("Saving environment...", "🔵");
-
         String selectedEnvironment = (String) environmentDropdown.getSelectedItem();
-        if (selectedEnvironment == null || selectedEnvironment.trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this,
-                "Please select or create an environment first.",
-                "No Environment Selected",
-                JOptionPane.WARNING_MESSAGE);
-            appState.setStatusError("No environment selected");
-            return;
-        }
+        Map<String, String> currentState = formController.buildCurrentState(keyFields, valueFields);
 
-        try {
-            Environment environment = new Environment(selectedEnvironment, currentState);
-            environmentService.saveEnvironment(environment);
-
-            appState.setEnvironmentVariables(currentState);
-            appState.setStatusSuccess("Environment '" + selectedEnvironment + "' saved");
-
-            // Update original state after successful save
-            originalEnvironmentState = new HashMap<>(currentState);
-            checkForChanges();
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this,
-                "Failed to save environment: " + e.getMessage(),
-                "Error",
-                JOptionPane.ERROR_MESSAGE);
-
-            appState.setStatusError("Failed to save environment");
+        if (formController.save(this, selectedEnvironment, currentState)) {
+            updateSaveButtonState();
         }
     }
 
@@ -343,7 +285,7 @@ public class EnvironmentEditorPanel extends JPanel {
         if (newEnvName != null && !newEnvName.trim().isEmpty()) {
             newEnvName = newEnvName.trim();
 
-            if (environmentService.environmentExists(newEnvName)) {
+            if (formController.environmentExists(newEnvName)) {
                 int result = JOptionPane.showConfirmDialog(
                     this,
                     "Environment '" + newEnvName + "' already exists. Do you want to edit it?",
@@ -361,97 +303,31 @@ public class EnvironmentEditorPanel extends JPanel {
         }
     }
 
-    private void checkForChanges() {
+    private void updateSaveButtonState() {
         if (isLoadingEnvironment) return;
 
-        // Get current state from the input fields
-        Map<String, String> currentState = new HashMap<>();
-        for (int i = 0; i < keyFields.size(); i++) {
-            String key = keyFields.get(i).getText().trim();
-            String value = valueFields.get(i).getText().trim();
+        Map<String, String> currentState = formController.buildCurrentState(keyFields, valueFields);
+        boolean hasChanges = formController.hasChanges(currentState);
 
-            if (!key.isEmpty() && !value.isEmpty()) {
-                currentState.put(key, value);
-            }
-        }
-
-        // Check if current state differs from original state
-        boolean hasChanges = !currentState.equals(originalEnvironmentState);
-
-        // Update save button appearance based on changes
         if (hasChanges) {
-            // Has changes - enable button with warning styling
-            saveButton.setEnabled(true);
-
-            // Try FlatLaf specific colors first, fall back to standard colors
-            Color warningColor = UIManager.getColor("Actions.Yellow");
-            if (warningColor == null) {
-                warningColor = UIManager.getColor("Component.warningBorderColor");
-            }
-            if (warningColor == null) {
-                warningColor = new Color(255, 193, 7); // Bootstrap warning color
-            }
-
-            saveButton.setBackground(warningColor);
-            saveButton.setForeground(Color.BLACK);
-            saveButton.putClientProperty("JButton.buttonType", null); // Reset to default button type
-            saveButton.setBorder(BorderFactory.createLineBorder(warningColor.darker(), 1));
-            saveButton.setToolTipText("Save changes to environment");
+            SaveButtonStyler.styleAsChanged(saveButton);
         } else {
-            // No changes - keep enabled but style as success to show the color properly
-            saveButton.setEnabled(true); // Keep enabled so colors show
-
-            // Try FlatLaf specific colors first, fall back to standard colors
-            Color successColor = UIManager.getColor("Actions.Green");
-            if (successColor == null) {
-                successColor = UIManager.getColor("Component.focusColor");
-            }
-            if (successColor == null) {
-                successColor = new Color(40, 167, 69); // Bootstrap success color
-            }
-
-            saveButton.setBackground(successColor);
-            saveButton.setForeground(Color.WHITE);
-            saveButton.putClientProperty("JButton.buttonType", null);
-            saveButton.setBorder(BorderFactory.createLineBorder(successColor.darker(), 1));
-            saveButton.setToolTipText("No changes to save");
-
-            // Make the button appear disabled by reducing opacity but keep it functional
-            saveButton.putClientProperty("JComponent.opacity", 0.7f);
-        }
-
-        // Reset opacity for warning state
-        if (hasChanges) {
-            saveButton.putClientProperty("JComponent.opacity", 1.0f);
-        }
-
-        // Force visual update
-        saveButton.invalidate();
-        saveButton.revalidate();
-        saveButton.repaint();
-
-        // Update parent to ensure proper rendering
-        if (saveButton.getParent() != null) {
-            saveButton.getParent().repaint();
+            SaveButtonStyler.styleAsSaved(saveButton);
         }
     }
+
+    // --- Public API ---
 
     public void refresh() {
         loadEnvironmentsFromDisk();
     }
 
     /**
-     * Refresh UI elements after theme changes to ensure proper appearance
+     * Refresh UI elements after theme changes.
      */
     public void refreshAfterThemeChange() {
-        // Update background colors to match new theme
         setBackground(UIManager.getColor("Panel.background"));
-
-        // Update any theme-dependent colors
-        Component[] components = getComponents();
-        updateComponentsForTheme(components);
-
-        // Force a complete repaint
+        updateComponentsForTheme(getComponents());
         revalidate();
         repaint();
     }
@@ -464,10 +340,8 @@ public class EnvironmentEditorPanel extends JPanel {
                     updateComponentsForTheme(((Container) comp).getComponents());
                 }
             }
-            // Remove any borders that might have theme-specific colors
             if (comp instanceof JComponent) {
                 JComponent jComp = (JComponent) comp;
-                // Keep only null borders or empty borders, remove line borders
                 if (jComp.getBorder() != null &&
                     jComp.getBorder().getClass().getSimpleName().contains("Line")) {
                     jComp.setBorder(null);

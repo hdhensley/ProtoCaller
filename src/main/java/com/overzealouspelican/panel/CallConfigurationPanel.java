@@ -2,37 +2,43 @@ package com.overzealouspelican.panel;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.Map;
 import com.overzealouspelican.component.KeyValueInputGroup;
 import com.overzealouspelican.component.LabeledTextField;
 import com.overzealouspelican.component.UrlWithMethodInput;
-import com.overzealouspelican.model.ApplicationState;
+import com.overzealouspelican.controller.CallExecutionHandler;
+import com.overzealouspelican.controller.CallFormController;
+import com.overzealouspelican.dialog.ImportCurlDialog;
+import com.overzealouspelican.dialog.ImportHarDialog;
 import com.overzealouspelican.model.ApiCall;
-import com.overzealouspelican.frame.CallOutputFrame;
+import com.overzealouspelican.model.ApplicationState;
 import com.overzealouspelican.service.ApiCallService;
-import com.overzealouspelican.service.HttpRequestExecutor;
 import com.overzealouspelican.util.UITheme;
 
 /**
- * Modern IntelliJ-style call configuration panel.
+ * UI panel for configuring API calls.
+ * Single responsibility: lay out form components and delegate actions to controllers.
  */
 public class CallConfigurationPanel extends JPanel {
 
-    private JButton saveButton;
-    private JButton callButton;
-    private JButton clearButton;
     private LabeledTextField nameField;
     private JTextArea descriptionArea;
     private UrlWithMethodInput urlInput;
     private KeyValueInputGroup headersGroup;
     private KeyValueInputGroup bodyGroup;
-    private ApplicationState appState;
-    private ApiCallService apiCallService;
-    private String currentGroupName; // Track the group of the currently loaded API call
+
+    private final CallExecutionHandler executionHandler;
+    private final CallFormController formController;
+    private final ImportCurlDialog importCurlDialog;
+    private final ImportHarDialog importHarDialog;
+    private final ApplicationState appState;
 
     public CallConfigurationPanel() {
+        ApiCallService apiCallService = new ApiCallService();
+        this.executionHandler = new CallExecutionHandler(apiCallService);
+        this.formController = new CallFormController(apiCallService);
+        this.importCurlDialog = new ImportCurlDialog();
+        this.importHarDialog = new ImportHarDialog();
         this.appState = ApplicationState.getInstance();
-        this.apiCallService = new ApiCallService();
         initializePanel();
     }
 
@@ -40,15 +46,13 @@ public class CallConfigurationPanel extends JPanel {
         setLayout(new BorderLayout());
         setBackground(UIManager.getColor("Panel.background"));
 
-        // Add modern toolbar
         add(createToolbar(), BorderLayout.NORTH);
 
-        // Main content area with padding
         JPanel contentWrapper = new JPanel(new BorderLayout());
         contentWrapper.setBackground(UIManager.getColor("Panel.background"));
         contentWrapper.setBorder(UITheme.contentPadding());
-
         contentWrapper.add(createContentPanel(), BorderLayout.CENTER);
+
         add(contentWrapper, BorderLayout.CENTER);
     }
 
@@ -60,27 +64,25 @@ public class CallConfigurationPanel extends JPanel {
             BorderFactory.createEmptyBorder(UITheme.SPACING_MD, UITheme.SPACING_LG, UITheme.SPACING_MD, UITheme.SPACING_LG)
         ));
 
-        // Left side - title
         JLabel titleLabel = new JLabel("API Request");
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, UITheme.FONT_SIZE_LG));
         toolbar.add(titleLabel, BorderLayout.WEST);
 
-        // Right side - action buttons
         JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, UITheme.SPACING_SM, 0));
         buttonsPanel.setOpaque(false);
 
-        clearButton = new JButton("Clear");
+        JButton clearButton = new JButton("Clear");
         clearButton.setToolTipText("Clear all form fields");
         clearButton.addActionListener(e -> handleClear());
 
-        callButton = new JButton("Send");
+        JButton saveButton = new JButton("Save");
+        saveButton.setToolTipText("Save this API call");
+        saveButton.addActionListener(e -> handleSave());
+
+        JButton callButton = new JButton("Send");
         callButton.setToolTipText("Execute the API call");
         UITheme.stylePrimaryButton(callButton);
         callButton.addActionListener(e -> handleCall());
-
-        saveButton = new JButton("Save");
-        saveButton.setToolTipText("Save this API call");
-        saveButton.addActionListener(e -> handleSave());
 
         buttonsPanel.add(clearButton);
         buttonsPanel.add(saveButton);
@@ -100,12 +102,10 @@ public class CallConfigurationPanel extends JPanel {
         topSection.setLayout(new BoxLayout(topSection, BoxLayout.Y_AXIS));
         topSection.setBackground(UIManager.getColor("Panel.background"));
 
-        // Name input
         nameField = new LabeledTextField("Name", "Enter a name for this call");
         topSection.add(nameField);
         topSection.add(Box.createVerticalStrut(UITheme.SPACING_MD));
 
-        // URL input with HTTP method
         urlInput = new UrlWithMethodInput();
         topSection.add(urlInput);
 
@@ -130,7 +130,7 @@ public class CallConfigurationPanel extends JPanel {
         descScrollPane.setMinimumSize(new Dimension(0, 40));
         descriptionPanel.add(descScrollPane, BorderLayout.CENTER);
 
-        // Center section: Headers and Body split evenly
+        // Headers and Body split evenly
         JPanel kvPanel = new JPanel(new GridLayout(2, 1, 0, UITheme.SPACING_MD));
         kvPanel.setBackground(UIManager.getColor("Panel.background"));
 
@@ -140,7 +140,7 @@ public class CallConfigurationPanel extends JPanel {
         kvPanel.add(headersGroup);
         kvPanel.add(bodyGroup);
 
-        // Split pane: description on top, headers/body on bottom (user-resizable)
+        // Split pane: description on top, headers/body on bottom
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, descriptionPanel, kvPanel);
         splitPane.setDividerLocation(80);
         splitPane.setDividerSize(6);
@@ -153,406 +153,47 @@ public class CallConfigurationPanel extends JPanel {
         return contentPanel;
     }
 
+    // --- Action handlers (thin delegates) ---
+
     private void handleCall() {
-        // Update status to loading
-        appState.setStatusLoading();
-
-        // Gather call information
-        String friendlyName = nameField.getText();
-        String url = urlInput.getUrl();
-        String httpMethod = urlInput.getHttpMethod();
-        String environment = appState.getSelectedEnvironment();
-        Map<String, String> environmentVariables = appState.getEnvironmentVariables();
-
-        // Create ApiCall object
-        ApiCall apiCall = new ApiCall(
-            friendlyName,
-            url,
-            httpMethod,
+        ApiCall apiCall = formController.buildApiCall(
+            nameField.getText(),
+            urlInput.getUrl(),
+            urlInput.getHttpMethod(),
+            descriptionArea.getText(),
             headersGroup.getKeyValuePairs(),
             bodyGroup.getKeyValuePairs()
         );
-
-        // Execute the actual HTTP request in a background thread
-        new Thread(() -> {
-            HttpRequestExecutor.HttpCallResult result = apiCallService.executeApiCall(apiCall, environmentVariables);
-
-            // Update UI on EDT
-            SwingUtilities.invokeLater(() -> {
-                // Format headers and body for display AFTER substitution
-                StringBuilder headersDisplay = new StringBuilder();
-                headersGroup.getKeyValuePairs().forEach((key, value) -> {
-                    String resolvedKey = substituteVariables(key, environmentVariables);
-                    String resolvedValue = substituteVariables(value, environmentVariables);
-                    headersDisplay.append(resolvedKey).append(": ").append(resolvedValue).append("\n");
-                });
-                if (headersDisplay.length() == 0) {
-                    headersDisplay.append("(No headers)");
-                }
-
-                StringBuilder bodyDisplay = new StringBuilder();
-                bodyGroup.getKeyValuePairs().forEach((key, value) -> {
-                    String resolvedKey = substituteVariables(key, environmentVariables);
-                    String resolvedValue = substituteVariables(value, environmentVariables);
-                    bodyDisplay.append(resolvedKey).append(": ").append(resolvedValue).append("\n");
-                });
-                if (bodyDisplay.length() == 0) {
-                    bodyDisplay.append("(No body)");
-                }
-
-                // Show the output in the CallOutputFrame
-                CallOutputFrame outputFrame = CallOutputFrame.getInstance();
-                outputFrame.displayCallOutput(
-                    environment,
-                    friendlyName,
-                    url,
-                    httpMethod,
-                    headersDisplay.toString(),
-                    bodyDisplay.toString(),
-                    result.formatResponse(),
-                    environmentVariables
-                );
-
-                // Update status based on result
-                if (result.isSuccess()) {
-                    appState.setStatusSuccess("API call completed successfully");
-                } else {
-                    appState.setStatusError("API call failed");
-                }
-            });
-        }).start();
-    }
-
-    /**
-     * Substitute {{key}} placeholders with environment variable values
-     */
-    private String substituteVariables(String input, Map<String, String> environmentVariables) {
-        if (input == null || environmentVariables == null) {
-            return input;
-        }
-
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\{\\{([^}]+)\\}\\}");
-        java.util.regex.Matcher matcher = pattern.matcher(input);
-        StringBuffer result = new StringBuffer();
-
-        while (matcher.find()) {
-            String key = matcher.group(1);
-            String value = environmentVariables.get(key);
-            if (value != null) {
-                matcher.appendReplacement(result, java.util.regex.Matcher.quoteReplacement(value));
-            } else {
-                // Keep the placeholder if no value found
-                matcher.appendReplacement(result, java.util.regex.Matcher.quoteReplacement(matcher.group(0)));
-            }
-        }
-        matcher.appendTail(result);
-
-        return result.toString();
+        executionHandler.execute(apiCall);
     }
 
     private void handleSave() {
-        // Update status
-        appState.setStatus("Saving configuration...", "🔵");
-
-        String friendlyName = nameField.getText();
-        String url = urlInput.getUrl();
-        String httpMethod = urlInput.getHttpMethod();
-
-        if (friendlyName == null || friendlyName.trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this,
-                "Please enter a name for this API call.",
-                "Name Required",
-                JOptionPane.WARNING_MESSAGE);
-            appState.setStatusError("Name is required");
-            return;
-        }
-
-        try {
-            // Create and save the API call
-            ApiCall apiCall = new ApiCall(
-                friendlyName,
-                url,
-                httpMethod,
-                headersGroup.getKeyValuePairs(),
-                bodyGroup.getKeyValuePairs()
-            );
-
-            // Preserve the group name if this API call was loaded from a group
-            if (currentGroupName != null) {
-                apiCall.setGroupName(currentGroupName);
-            }
-
-            // Set optional description
-            String description = descriptionArea.getText();
-            if (description != null && !description.trim().isEmpty()) {
-                apiCall.setDescription(description.trim());
-            }
-
-            apiCallService.saveApiCall(apiCall);
-
-//            JOptionPane.showMessageDialog(this,
-//                "API call saved successfully to:\n" + apiCallService.getApiCallsFilePath(),
-//                "Success",
-//                JOptionPane.INFORMATION_MESSAGE);
-
-            // Update status to success
-            appState.setStatusSuccess("Configuration saved");
-
-            // Notify that a new call was saved (fire property change)
-            appState.firePropertyChange("apiCallSaved", null, friendlyName);
-        } catch (Exception e) {
-
-            JOptionPane.showMessageDialog(this,
-                "Failed to save API call: " + e.getMessage(),
-                "Error",
-                JOptionPane.ERROR_MESSAGE);
-
-            appState.setStatusError("Failed to save configuration");
-        }
+        ApiCall apiCall = formController.buildApiCall(
+            nameField.getText(),
+            urlInput.getUrl(),
+            urlInput.getHttpMethod(),
+            descriptionArea.getText(),
+            headersGroup.getKeyValuePairs(),
+            bodyGroup.getKeyValuePairs()
+        );
+        formController.save(this, apiCall);
     }
 
     private void handleClear() {
-        // Clear all fields
         nameField.setText("");
         urlInput.setUrl("");
         urlInput.setHttpMethod("GET");
         descriptionArea.setText("");
         headersGroup.clear();
         bodyGroup.clear();
-
-        // Clear the tracked group name
-        currentGroupName = null;
-
-        // Reset status
-        appState.setStatus("Ready", "✅");
+        formController.clearGroupName();
+        appState.setStatus("Ready", "\u2705");
     }
 
-    /**
-     * Handle importing an API call from a cURL command
-     */
-    private void handleImportCurl() {
-        // Create a dialog with a text area for pasting cURL command
-        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Import from cURL", true);
-        dialog.setLayout(new BorderLayout(10, 10));
-        dialog.setSize(700, 400);
-        dialog.setLocationRelativeTo(this);
-
-        // Instructions
-        JLabel instructions = new JLabel("<html>Paste your cURL command below:</html>");
-        instructions.setBorder(BorderFactory.createEmptyBorder(10, 10, 5, 10));
-        dialog.add(instructions, BorderLayout.NORTH);
-
-        // Text area for cURL input
-        JTextArea curlInput = new JTextArea();
-        curlInput.setLineWrap(true);
-        curlInput.setWrapStyleWord(true);
-        curlInput.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        JScrollPane scrollPane = new JScrollPane(curlInput);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
-        dialog.add(scrollPane, BorderLayout.CENTER);
-
-        // Buttons panel
-        JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        buttonsPanel.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
-
-        JButton cancelButton = new JButton("Cancel");
-        cancelButton.addActionListener(e -> dialog.dispose());
-
-        JButton importButton = new JButton("Import");
-        importButton.addActionListener(e -> {
-            String curlCommand = curlInput.getText().trim();
-            if (curlCommand.isEmpty()) {
-                JOptionPane.showMessageDialog(dialog,
-                    "Please paste a cURL command.",
-                    "Empty Input",
-                    JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-
-            try {
-                // Parse the cURL command
-                ApiCall apiCall = com.overzealouspelican.util.CurlParser.parseCurl(curlCommand);
-
-                // Generate a suggested name
-                String suggestedName = com.overzealouspelican.util.CurlParser.generateName(apiCall.getUrl());
-                apiCall.setName(suggestedName);
-
-                // Load the API call into the form
-                loadApiCall(apiCall);
-
-                // Close the dialog
-                dialog.dispose();
-
-                // Update status
-                appState.setStatusSuccess("cURL command imported successfully");
-
-                JOptionPane.showMessageDialog(this,
-                    "API call imported successfully!\nYou can now edit and save it.",
-                    "Import Successful",
-                    JOptionPane.INFORMATION_MESSAGE);
-
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(dialog,
-                    "Failed to parse cURL command:\n" + ex.getMessage(),
-                    "Parse Error",
-                    JOptionPane.ERROR_MESSAGE);
-            }
-        });
-
-        buttonsPanel.add(cancelButton);
-        buttonsPanel.add(importButton);
-        dialog.add(buttonsPanel, BorderLayout.SOUTH);
-
-        // Show the dialog
-        dialog.setVisible(true);
-    }
+    // --- Public API ---
 
     /**
-     * Show the import from cURL dialog (public method for menu access)
-     */
-    public void showImportCurlDialog() {
-        handleImportCurl();
-    }
-
-    /**
-     * Show the import from HAR dialog (public method for menu access)
-     */
-    public void showImportHarDialog() {
-        handleImportHar();
-    }
-
-    /**
-     * Handle importing API calls from a HAR file
-     */
-    private void handleImportHar() {
-        // Create a file chooser
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setDialogTitle("Select HAR File");
-        fileChooser.setFileFilter(new javax.swing.filechooser.FileFilter() {
-            @Override
-            public boolean accept(java.io.File f) {
-                return f.isDirectory() || f.getName().toLowerCase().endsWith(".har");
-            }
-
-            @Override
-            public String getDescription() {
-                return "HAR Files (*.har)";
-            }
-        });
-
-        int result = fileChooser.showOpenDialog(this);
-        if (result == JFileChooser.APPROVE_OPTION) {
-            java.io.File selectedFile = fileChooser.getSelectedFile();
-
-            try {
-                // Read the file
-                String harContent = new String(java.nio.file.Files.readAllBytes(selectedFile.toPath()));
-
-                // Parse the HAR file
-                java.util.List<ApiCall> apiCalls = com.overzealouspelican.util.HarParser.parseHar(harContent);
-
-                if (apiCalls.isEmpty()) {
-                    JOptionPane.showMessageDialog(this,
-                        "No API calls found in the HAR file.",
-                        "No Data",
-                        JOptionPane.WARNING_MESSAGE);
-                    return;
-                }
-
-                // If only one API call, load it directly
-                if (apiCalls.size() == 1) {
-                    loadApiCall(apiCalls.get(0));
-                    appState.setStatusSuccess("HAR file imported successfully");
-                    JOptionPane.showMessageDialog(this,
-                        "API call imported successfully!\nYou can now edit and save it.",
-                        "Import Successful",
-                        JOptionPane.INFORMATION_MESSAGE);
-                } else {
-                    // Multiple API calls - show selection dialog
-                    showHarSelectionDialog(apiCalls);
-                }
-
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this,
-                    "Failed to import HAR file:\n" + ex.getMessage(),
-                    "Import Error",
-                    JOptionPane.ERROR_MESSAGE);
-            }
-        }
-    }
-
-    /**
-     * Show a dialog to select which API call from HAR to import
-     */
-    private void showHarSelectionDialog(java.util.List<ApiCall> apiCalls) {
-        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Select API Call", true);
-        dialog.setLayout(new BorderLayout(10, 10));
-        dialog.setSize(800, 500);
-        dialog.setLocationRelativeTo(this);
-
-        // Instructions
-        JLabel instructions = new JLabel("<html><b>Multiple API calls found.</b> Select one to import:</html>");
-        instructions.setBorder(BorderFactory.createEmptyBorder(10, 10, 5, 10));
-        dialog.add(instructions, BorderLayout.NORTH);
-
-        // Create a list model
-        DefaultListModel<String> listModel = new DefaultListModel<>();
-        for (ApiCall apiCall : apiCalls) {
-            String displayText = String.format("%s %s - %s",
-                apiCall.getHttpMethod(),
-                apiCall.getName(),
-                apiCall.getUrl());
-            listModel.addElement(displayText);
-        }
-
-        // Create the list
-        JList<String> apiCallList = new JList<>(listModel);
-        apiCallList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        apiCallList.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
-
-        JScrollPane scrollPane = new JScrollPane(apiCallList);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
-        dialog.add(scrollPane, BorderLayout.CENTER);
-
-        // Buttons panel
-        JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        buttonsPanel.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
-
-        JButton cancelButton = new JButton("Cancel");
-        cancelButton.addActionListener(e -> dialog.dispose());
-
-        JButton importButton = new JButton("Import Selected");
-        importButton.addActionListener(e -> {
-            int selectedIndex = apiCallList.getSelectedIndex();
-            if (selectedIndex == -1) {
-                JOptionPane.showMessageDialog(dialog,
-                    "Please select an API call to import.",
-                    "No Selection",
-                    JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-
-            ApiCall selectedCall = apiCalls.get(selectedIndex);
-            loadApiCall(selectedCall);
-            dialog.dispose();
-
-            appState.setStatusSuccess("API call imported from HAR");
-            JOptionPane.showMessageDialog(this,
-                "API call imported successfully!\nYou can now edit and save it.",
-                "Import Successful",
-                JOptionPane.INFORMATION_MESSAGE);
-        });
-
-        buttonsPanel.add(cancelButton);
-        buttonsPanel.add(importButton);
-        dialog.add(buttonsPanel, BorderLayout.SOUTH);
-
-        // Show the dialog
-        dialog.setVisible(true);
-    }
-
-    /**
-     * Load an API call into the form
+     * Load an API call into the form fields.
      */
     public void loadApiCall(ApiCall apiCall) {
         if (apiCall == null) return;
@@ -563,12 +204,25 @@ public class CallConfigurationPanel extends JPanel {
         descriptionArea.setText(apiCall.getDescription() != null ? apiCall.getDescription() : "");
         headersGroup.setKeyValuePairs(apiCall.getHeaders());
         bodyGroup.setKeyValuePairs(apiCall.getBody());
-
-        // Track the group name so it can be preserved when saving
-        currentGroupName = apiCall.getGroupName();
+        formController.setCurrentGroupName(apiCall.getGroupName());
     }
 
-    // Public API for accessing/setting data
+    /**
+     * Show the import from cURL dialog.
+     */
+    public void showImportCurlDialog() {
+        importCurlDialog.show(this, this::loadApiCall);
+    }
+
+    /**
+     * Show the import from HAR dialog.
+     */
+    public void showImportHarDialog() {
+        importHarDialog.show(this, this::loadApiCall);
+    }
+
+    // --- Accessors for external consumers ---
+
     public String getFriendlyName() {
         return nameField.getText();
     }
