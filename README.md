@@ -1,5 +1,15 @@
 # ProtoCaller API Client
 
+[![CI](https://github.com/hdhensley/ProtoCaller/actions/workflows/ci.yml/badge.svg)](https://github.com/hdhensley/ProtoCaller/actions/workflows/ci.yml)
+[![Build and Release](https://github.com/hdhensley/ProtoCaller/actions/workflows/release.yml/badge.svg)](https://github.com/hdhensley/ProtoCaller/actions/workflows/release.yml)
+[![Latest Release](https://img.shields.io/github/v/release/hdhensley/ProtoCaller)](https://github.com/hdhensley/ProtoCaller/releases)
+[![License](https://img.shields.io/github/license/hdhensley/ProtoCaller)](https://github.com/hdhensley/ProtoCaller/blob/main/LICENSE)
+[![Open Issues](https://img.shields.io/github/issues/hdhensley/ProtoCaller)](https://github.com/hdhensley/ProtoCaller/issues)
+[![Downloads](https://img.shields.io/github/downloads/hdhensley/ProtoCaller/total)](https://github.com/hdhensley/ProtoCaller/releases)
+[![Java 21](https://img.shields.io/badge/Java-25-ED8B00)](https://adoptium.net/)
+[![Maven](https://img.shields.io/badge/build-Maven-C71A36)](https://maven.apache.org/)
+
+
 A privacy-focused, desktop API client built with Java Swing. Test REST APIs, manage environments, and organize your API calls - all stored locally on your machine.
 
 ![ProtoCaller API Client Screenshot](example-screenshot.png)
@@ -16,7 +26,10 @@ A privacy-focused, desktop API client built with Java Swing. Test REST APIs, man
 - **🔄 Variable Substitution**: Use environment variables in URLs, headers, and body
 - **📊 Response Viewer**: Formatted JSON responses with status codes and timing
 - **📁 API Call Grouping**: Organize your API calls into collapsible groups with drag-and-drop
-- **🚀 Modern UI**: Clean, responsive interface built with FlatLaf
+- **� Description Field**: Add optional multi-line descriptions to your API calls
+- **🔀 Collapse/Expand All**: Toggle all groups open or closed from the Saved Calls toolbar
+- **📐 Resizable Panels**: Drag dividers to customize panel sizes in the UI
+- **�🚀 Modern UI**: Clean, responsive interface built with FlatLaf
 
 ## 🛠️ Requirements
 
@@ -24,7 +37,7 @@ A privacy-focused, desktop API client built with Java Swing. Test REST APIs, man
 
 - **Java**: JDK 17 or higher (JDK 25 recommended for building)
   - Check your Java version: `java -version`
-  - Download from [Oracle](https://www.oracle.com/java/technologies/downloads/) or [OpenJDK](https://openjdk.org/)
+  - Download from [Adoptium](https://adoptium.net/) or [OpenJDK](https://openjdk.org/)
 
 - **Maven**: Version 3.6 or higher (only needed for building from source)
   - Used for dependency management and building the project
@@ -153,40 +166,60 @@ java -jar pcac-1.0-SNAPSHOT.jar
 
 ```
 pcac/
-├── src/
-│   ├── main/
-│   │   ├── java/com/overzealouspelican/
-│   │   │   ├── Main.java                      # Application entry point
-│   │   │   ├── component/                     # Reusable UI components
-│   │   │   │   ├── KeyValueInputGroup.java    # Headers/Body input component
-│   │   │   │   ├── LabeledTextField.java      # Labeled text input
-│   │   │   │   └── UrlWithMethodInput.java    # URL + HTTP method selector
-│   │   │   ├── frame/                         # Dialog windows
-│   │   │   │   ├── CallOutputFrame.java       # Response display window
-│   │   │   │   ├── EnvironmentFrame.java      # Environment management
-│   │   │   │   ��── ImportFrame.java           # HAR file import
-│   │   │   ├── model/                         # Data models
-│   │   │   │   ├── ApiCall.java               # API call configuration
-│   │   │   │   ├── ApplicationState.java      # Global app state
-│   │   │   │   └── Environment.java           # Environment with variables
-│   │   │   ├── panel/                         # Main UI panels
-│   │   │   │   ├── CallConfigurationPanel.java # Main form
-│   │   │   │   ├── ControlPanel.java          # Top control bar
-│   │   │   │   ├── MainContentPanel.java      # Content layout
-│   │   │   │   ├── StatusPanel.java           # Bottom status bar
-│   │   │   │   └── UrlPanel.java              # Saved calls sidebar
-│   │   │   ├── service/                       # Business logic
-│   │   │   │   ├── ApiCallService.java        # HTTP execution & persistence
-│   │   │   │   └── EnvironmentService.java    # Environment persistence
-│   │   │   └── util/                          # Utilities
-│   │   │       ├── FontUtils.java             # Font management
-│   │   │       └── IconUtils.java             # Icon loading
-│   │   └── resources/
-│   │       └── icons/                         # Application icons
-│   └── test/                                   # Unit tests (future)
-├── pom.xml                                     # Maven configuration
-├── .gitignore                                  # Git ignore rules
-└── README.md                                   # This file
+├── src/main/java/com/overzealouspelican/
+│   ├── Main.java                          # Application entry point
+│   ├── component/                         # Reusable UI components
+│   │   ├── KeyValueInputGroup.java        # Headers/Body key-value input
+│   │   ├── LabeledTextField.java          # Labeled text input
+│   │   └── UrlWithMethodInput.java        # URL + HTTP method selector
+│   ├── controller/                        # Business logic controllers (SRP)
+│   │   ├── ApiCallDragDropHandler.java    # Drag-and-drop group assignment
+│   │   ├── CallExecutionHandler.java      # HTTP call orchestration
+│   │   ├── CallFormController.java        # API call form state management
+│   │   ├── EnvironmentFormController.java # Environment persistence & dirty-state
+│   │   └── SavedCallsListController.java  # Saved calls grouping & expand state
+│   ├── dialog/                            # Standalone dialog windows
+│   │   ├── ImportCurlDialog.java          # cURL import dialog
+│   │   └── ImportHarDialog.java           # HAR file import dialog
+│   ├── frame/                             # Application frames
+│   │   ├── CallOutputFrame.java           # Response display window
+│   │   ├── ImportFrame.java               # Import frame
+│   │   └── MainFrame.java                 # Main application window
+│   ├── model/                             # Data models
+│   │   ├── ApiCall.java                   # API call configuration
+│   │   ├── ApiCallGroup.java              # API call grouping
+│   │   ├── ApplicationState.java          # Global app state
+│   │   └── Environment.java              # Environment with variables
+│   ├── panel/                             # UI panels (layout only)
+│   │   ├── CallConfigurationPanel.java    # API request form
+│   │   ├── EnvironmentEditorPanel.java    # Environment variable editor
+│   │   ├── MainContentPanel.java          # Content layout
+│   │   ├── SettingsEditorPanel.java       # Settings UI
+│   │   ├── SidebarPanel.java             # Sidebar with tabs
+│   │   ├── StatusPanel.java              # Bottom status bar
+│   │   ├── ToolbarPanel.java             # Top toolbar
+│   │   └── UrlPanel.java                 # Saved calls list
+│   ├── service/                           # Data access and execution
+│   │   ├── ApiCallPersistenceService.java # API call file I/O
+│   │   ├── ApiCallService.java            # API call facade
+│   │   ├── EnvironmentService.java        # Environment persistence
+│   │   ├── HttpClientFactory.java         # HTTP client creation
+│   │   ├── HttpRequestExecutor.java       # HTTP request execution
+│   │   ├── SettingsService.java           # App settings persistence
+│   │   ├── StoragePathService.java        # Storage location management
+│   │   └── VariableSubstitutionService.java # {{var}} resolution
+│   └── util/                              # Utilities
+│       ├── ApiCallNameGenerator.java      # Name generation for imports
+│       ├── CurlParser.java                # cURL command parsing
+│       ├── FontUtils.java                 # Font management
+│       ├── HarParser.java                 # HAR file parsing
+│       ├── IconUtils.java                 # Icon loading
+│       ├── SaveButtonStyler.java          # Save button visual state
+│       └── UITheme.java                   # Theme constants and helpers
+├── src/main/resources/icons/              # Application icons
+├── pom.xml                                # Maven configuration
+├── .github/workflows/release.yml          # CI/CD release pipeline
+└── README.md                              # This file
 ```
 
 ## 🔧 Configuration
@@ -240,14 +273,19 @@ Use the "Reset to Defaults" button to restore:
 
 ## 🎨 User Interface
 
-The application follows SOLID principles with a modular design:
+The application follows SOLID principles with a clean separation of concerns:
 
-- **Control Panel**: Environment selection, manage environments, and application settings
-- **URL Information Panel**: Main form for configuring API calls
-- **Saved Calls Sidebar**: Quick access to saved API calls with import functionality
+- **Panels** (UI only): Render layouts and delegate user interactions to controllers
+- **Controllers**: Handle business logic, state management, and persistence orchestration
+- **Services**: Provide data access, HTTP execution, and variable substitution
+- **Dialogs**: Self-contained import workflows (cURL, HAR)
+
+Key UI components:
+- **Sidebar**: Environment editor with tabbed Environments/Settings views
+- **Saved Calls Panel**: Grouped list with drag-and-drop, collapse/expand all toggle
+- **API Request Panel**: Name, URL, description (resizable), headers, and body sections
 - **Status Bar**: Real-time status updates
-- **Call Output Window**: Detailed response viewer with JSON formatting
-- **Settings Window**: Theme selection and storage location configuration
+- **Call Output Window**: Formatted JSON responses with status codes and timing
 
 ## 🏗️ Building Installers
 
