@@ -69,12 +69,9 @@ Download the latest release for your operating system from the [Releases](https:
 
 - **Windows**: `pcac-1.0.exe` - Double-click to install
 - **macOS**: `pcac-1.0.0.dmg` - Open and drag to Applications folder
-  - ⚠️ **macOS users**: You may see a Gatekeeper warning. See [macOS Installation Guide](MACOS_INSTALL.md) for instructions on how to open the app safely.
 - **Linux**: `pcac_1.0-1_amd64.deb` - Install with `sudo dpkg -i pcac_1.0-1_amd64.deb`
 
 The installers include a custom JRE, so you don't need Java installed on your system!
-
-**Note**: ProtoCaller Api Client is not notarized by Apple (requires $99/year), so macOS will show a security warning. The app is completely safe - all code is open source and auditable.
 
 #### Option 2: Run the JAR File
 
